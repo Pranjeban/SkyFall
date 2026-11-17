@@ -303,6 +303,76 @@ class AzureProfileCreateDialog(QDialog):
         return self.tenant_edit.text().strip()
 
 
+class PowerPlatformProfileCreateDialog(QDialog):
+    """Collect a named Power Platform profile before direct Microsoft OAuth."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Add Power Platform profile")
+        self.setMinimumWidth(540)
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 18, 20, 18)
+        layout.setSpacing(12)
+        heading = QLabel("Connect a Power Platform account")
+        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4EFF8;")
+        layout.addWidget(heading)
+        info = QLabel(
+            "SKYFALL opens Microsoft sign-in in your browser, saves this account as a local profile, "
+            "then lists the environments that account can access."
+        )
+        info.setObjectName("muted")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        form = QFormLayout()
+        form.setSpacing(10)
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("For example: Company QA")
+        self.tenant_edit = QLineEdit()
+        self.tenant_edit.setPlaceholderText("Tenant GUID or contoso.onmicrosoft.com (optional)")
+        for field in (self.name_edit, self.tenant_edit):
+            field.setMinimumHeight(36)
+            field.setStyleSheet(
+                "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+                "border-radius:8px;padding:7px 10px;"
+            )
+        form.addRow("Profile name", self.name_edit)
+        form.addRow("Tenant (optional)", self.tenant_edit)
+        layout.addLayout(form)
+        self.error_label = QLabel("")
+        self.error_label.setStyleSheet("color:#F09BA7;font-size:11px;")
+        layout.addWidget(self.error_label)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Continue to Microsoft sign-in")
+        buttons.button(QDialogButtonBox.StandardButton.Ok).setObjectName("primaryButton")
+        buttons.accepted.connect(self._validate_and_accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+    def _validate_and_accept(self) -> None:
+        name = self.name_edit.text().strip()
+        tenant = self.tenant_edit.text().strip()
+        if not name or len(name) > 80:
+            self.error_label.setText("Enter a profile name between 1 and 80 characters.")
+            self.name_edit.setFocus()
+            return
+        if len(tenant) > 200 or any(char in tenant for char in "\r\n/\\"):
+            self.error_label.setText("Enter a tenant ID or domain, or leave it blank for work and school accounts.")
+            self.tenant_edit.setFocus()
+            return
+        self.accept()
+
+    @property
+    def profile_name(self) -> str:
+        return self.name_edit.text().strip()
+
+    @property
+    def tenant(self) -> str:
+        return self.tenant_edit.text().strip() or "organizations"
+
+
 class MainWindow(QMainWindow):
     NAV_ITEMS = [
         ("Overview", "overview"),
@@ -372,6 +442,7 @@ class MainWindow(QMainWindow):
         self.pp_status_label: QLabel | None = None
         self.pp_profile_combo: QComboBox | None = None
         self.pp_configure_app_button: QPushButton | None = None
+        self.pp_refresh_environments_button: QPushButton | None = None
         self.pp_profiles_table: QTableWidget | None = None
         self.pp_environments_table: QTableWidget | None = None
         self.pp_resource_environment_combo: QComboBox | None = None
@@ -1403,13 +1474,20 @@ class MainWindow(QMainWindow):
         )
         self.pp_profile_combo.currentIndexChanged.connect(self._on_powerplatform_profile_changed)
         buttons.addWidget(self.pp_profile_combo, 1)
-        add_account = QPushButton("Add Microsoft account")
+        add_account = QPushButton("Add profile")
         add_account.setObjectName("primaryButton")
         add_account.clicked.connect(self._manage_powerplatform_profiles)
         buttons.addWidget(add_account)
-        self.pp_configure_app_button = QPushButton("Configure app ID")
+        self.pp_refresh_environments_button = QPushButton("Refresh environments")
+        self.pp_refresh_environments_button.setObjectName("secondaryButton")
+        self.pp_refresh_environments_button.clicked.connect(
+            lambda: self._start_microsoft_worker("powerplatform_environments")
+        )
+        buttons.addWidget(self.pp_refresh_environments_button)
+        self.pp_configure_app_button = QPushButton("App registration setup")
         self.pp_configure_app_button.setObjectName("secondaryButton")
         self.pp_configure_app_button.clicked.connect(self._configure_powerplatform_app)
+        self.pp_configure_app_button.setVisible(not bool(self.powerplatform_account_store.get_client_id()))
         buttons.addWidget(self.pp_configure_app_button)
         remove_account = QPushButton("Remove account")
         remove_account.setObjectName("dangerButton")
@@ -1417,7 +1495,9 @@ class MainWindow(QMainWindow):
         buttons.addWidget(remove_account)
         buttons.addStretch(1)
         panel_layout.addLayout(buttons)
-        self.pp_status_label = QLabel("Configure your Microsoft Entra app once, then add accounts. Saved accounts are selected from the dropdown.")
+        self.pp_status_label = QLabel(
+            "Add a profile to sign in through Microsoft. SKYFALL will discover accessible environments automatically."
+        )
         self.pp_status_label.setObjectName("muted")
         self.pp_status_label.setWordWrap(True)
         panel_layout.addWidget(self.pp_status_label)
@@ -1441,8 +1521,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pp_environments_table, 1)
 
         note = QLabel(
-            "One-time setup: register a desktop/public client app in Microsoft Entra, enable public client flows, add delegated Power Platform environment read and Dynamics CRM user_impersonation permissions, then enter its Application (client) ID. "
-            "Account tokens are cached per profile using OS-protected MSAL storage. Environment discovery runs at sign-in and app startup. "
+            "Power Platform API sign-in uses direct Microsoft OAuth (no PAC CLI). Microsoft requires a registered desktop/public client app; configure its client ID once, enable public client flows, and grant delegated Power Platform environment read and Dynamics CRM user_impersonation permissions. "
+            "Account tokens are cached per profile using OS-protected MSAL storage. Environment discovery runs after sign-in and when you refresh. "
             "Flow inventory uses Dataverse metadata columns only; definitions, connections and secrets are excluded."
         )
         note.setObjectName("muted")
@@ -1815,6 +1895,11 @@ class MainWindow(QMainWindow):
         elif action == "powerplatform_select":
             if self.pp_status_label:
                 self.pp_status_label.setText("Switching the selected SKYFALL account and refreshing its environments...")
+        elif action == "powerplatform_environments":
+            if self.pp_refresh_environments_button:
+                self.pp_refresh_environments_button.setEnabled(False)
+            if self.pp_status_label:
+                self.pp_status_label.setText("Refreshing environments for the selected Microsoft account...")
         elif action == "powerplatform_flow_inventory":
             if self.pp_flow_status_label:
                 self.pp_flow_status_label.setText("Retrieving cloud-flow metadata and preparing the Excel report...")
@@ -1847,7 +1932,7 @@ class MainWindow(QMainWindow):
         self.powerplatform_account_store.remove_profile(profile_id)
         self._refresh_powerplatform_profiles()
 
-    def _configure_powerplatform_app(self) -> None:
+    def _configure_powerplatform_app(self, *, refresh: bool = True) -> None:
         current = self.powerplatform_account_store.get_client_id()
         client_id, accepted = QInputDialog.getText(
             self,
@@ -1865,28 +1950,22 @@ class MainWindow(QMainWindow):
             return
         if self.pp_status_label:
             self.pp_status_label.setText("Microsoft app configured. Add an account to sign in and discover environments.")
-        self._refresh_powerplatform_profiles()
+        if self.pp_configure_app_button:
+            self.pp_configure_app_button.setVisible(False)
+        if refresh:
+            self._refresh_powerplatform_profiles()
 
     def _manage_powerplatform_profiles(self) -> None:
         if not self.powerplatform_account_store.get_client_id():
-            self._configure_powerplatform_app()
+            self._configure_powerplatform_app(refresh=False)
             if not self.powerplatform_account_store.get_client_id():
                 return
-        profile_name, accepted = QInputDialog.getText(
-            self, "Add Microsoft account", "Name this SKYFALL account profile:"
-        )
-        if not accepted or not profile_name.strip():
-            return
-        tenant, accepted = QInputDialog.getText(
-            self,
-            "Choose Microsoft tenant",
-            "Tenant ID or verified domain (leave blank for work and school accounts):",
-        )
-        if not accepted:
+        dialog = PowerPlatformProfileCreateDialog(self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._start_microsoft_worker(
             "powerplatform_login",
-            params={"profile_name": profile_name.strip(), "tenant": tenant.strip() or "organizations"},
+            params={"profile_name": dialog.profile_name, "tenant": dialog.tenant},
         )
 
     def _on_powerplatform_profile_changed(self, _index: int) -> None:
@@ -2139,6 +2218,8 @@ class MainWindow(QMainWindow):
                         )
 
         elif action.startswith("powerplatform"):
+            if action == "powerplatform_environments" and self.pp_refresh_environments_button:
+                self.pp_refresh_environments_button.setEnabled(True)
             profiles = data.get("profiles", {})
             auth = data.get("auth", {})
             active = auth.get("active_profile") or {}
@@ -2149,7 +2230,7 @@ class MainWindow(QMainWindow):
                     self._auth_refresh_attempts = 0
             if self.pp_status_label:
                 if not auth.get("client_id_configured"):
-                    self.pp_status_label.setText("Configure the Microsoft Entra application client ID to connect accounts.")
+                    self.pp_status_label.setText("Complete the one-time app registration setup, then add a profile to sign in.")
                 elif active:
                     self.pp_status_label.setText(
                         f"Selected account: {active.get('name') or 'Microsoft account'} ? "
@@ -2157,7 +2238,7 @@ class MainWindow(QMainWindow):
                         f"{auth.get('profile_count', 0)} saved profile(s)"
                     )
                 else:
-                    self.pp_status_label.setText("No account selected. Add a Microsoft account to discover environments.")
+                    self.pp_status_label.setText("No account selected. Add a profile to sign in and discover environments.")
             if self.pp_profile_combo:
                 rows_for_combo = profiles.get("profiles", [])
                 active_id = active.get("profile_id")
@@ -2242,7 +2323,7 @@ class MainWindow(QMainWindow):
                     friendly_error = env_result.get("error", "Environment discovery could not be completed.")
                     if self.pp_status_label:
                         self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {friendly_error}")
-                    guidance = friendly_error if auth.get("authenticated") else "Configure the Entra app and add a Microsoft account to discover environments."
+                    guidance = friendly_error if auth.get("authenticated") else "Complete the app registration setup, add a profile, and sign in to discover environments."
                     if self.pp_flow_status_label:
                         self.pp_flow_status_label.setText(guidance)
                     if self.pp_flow_empty_state:
@@ -2277,6 +2358,11 @@ class MainWindow(QMainWindow):
                 self.pp_flow_inventory_button.setEnabled(True)
             if self.pp_flow_status_label:
                 self.pp_flow_status_label.setText(f"Power Automate flow inventory failed: {error}")
+        elif action == "powerplatform_environments":
+            if self.pp_refresh_environments_button:
+                self.pp_refresh_environments_button.setEnabled(True)
+            if self.pp_status_label:
+                self.pp_status_label.setText(f"Environment discovery failed: {error}")
         elif action in {"azure", "azure_login"} and self.azure_status_label:
             self.azure_status_label.setText(f"Azure discovery failed: {error}")
         elif self.pp_status_label:

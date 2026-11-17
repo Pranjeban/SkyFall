@@ -89,3 +89,8 @@ The user proposed Intelligent Engineering Orchestration from approved workspace 
 ## 2026-11-17 ? Kiro-inspired UI correction
 
 User rejected the interim light palette after sharing a SKYFALL screenshot showing a white chat area and black sidebar block. Asked to inspect Kiro's dark/purple design and produce a beautiful glass-inspired redesign. The UI now uses a unified dark graphite/plum palette with violet actions/focus, layered panels and matching chat, dialogs, dropdowns, tables, and floating assistant styling. Explicit sidebar inner surface styling addresses the black nav block. A version note was added at `releases/v1.0/README_SKYFALL_V1_0.md`. Screenshot-level verification remains open until launched on Windows with PySide6.
+
+
+## 2026-11-17 ? Power Platform sign-in aligned with Azure
+
+User requested the same profile-first Microsoft sign-in flow for Power Platform as Azure, followed by a list of accessible environments. Updated Power Platform to use a single profile form (name and optional tenant), Microsoft browser sign-in, automatic environment discovery, a refresh button, and the saved environment dropdown. Kept the required one-time Entra app registration for direct Power Platform API OAuth; no PAC CLI dependency is introduced. Added notes to the v0.9.2 change log and collaboration memory. Live sign-in/environment verification is still needed.

@@ -92,3 +92,7 @@ The user named Intelligent Engineering Orchestration as the next major milestone
 ## Kiro-inspired visual redesign (2026-11-17)
 
 User feedback: the light v1.0 redesign looked very bad (especially the white chat canvas and black sidebar navigation block). User shared a Kiro Crew screenshot and requested a detailed Kiro-inspired scheme, glass styling, and a more polished overall UI. Replaced the light direction with graphite/plum surfaces, muted lavender navigation, violet accents, layered translucent cards, consistent dark styling for chat/Markdown, dialogs, tables, profile selectors, and floating assistant. Explicitly themed `sidebarNavigationContent` to eliminate the black rectangle. Design reference: https://kiro.dev/ and user-provided screenshot. Status: code updated; launch-and-render visual check still needed on a PySide6-enabled Windows environment.
+
+## Power Platform Azure-style sign-in (2026-11-17)
+
+User asked for Power Platform to use the same sign-in pattern as Azure and then list environments available to the signed-in account. Aligned the flow to one profile creation dialog (profile name plus optional tenant), Microsoft browser sign-in, automatic environment discovery, a refresh action, and a saved per-profile environment selector. Kept direct OAuth and removed no app registration requirement: Microsoft Learn states Power Platform API use requires an app registration. The PAC CLI is not used. Version note appended to `releases/v0.9.2/README_SKYFALL_V0_9_2.md`. Code updated; Windows live-account verification remains pending.

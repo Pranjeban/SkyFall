@@ -46,3 +46,7 @@ Restored the Azure MCP account-login tool that the server imports: new named iso
 ## Unit regression count/string fixes
 
 Updated v0.9.2 capability counts (20 total tools, 4 Power Platform discovery tools) and corrected the regex so literal parentheses in the client ID validation message match correctly.
+
+## Power Platform account flow update (2026-11-17)
+
+Aligned Power Platform sign-in with Azure's profile-first workflow: Add profile opens one form for a profile name and optional tenant, launches Microsoft browser sign-in, then discovers accessible environments. Added a dedicated Refresh environments action. Discovered environments appear in the account page and the Power Automate environment selector; the selection remains saved per profile. The separate app setup control is shown only until the one-time client ID is configured. Authentication uses direct Microsoft OAuth and does not depend on PAC CLI. Microsoft requires an Entra public client app for Power Platform API access, so the client ID and delegated permissions remain a one-time prerequisite.
