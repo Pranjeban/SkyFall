@@ -168,6 +168,14 @@ def start_powerplatform_login(profile_name: str, tenant: str = "") -> str:
     name = (profile_name or "").strip()
     if not name:
         return _json({"success": False, "requires_input": ["profile_name"], "message": "Provide a name for the Microsoft account profile."})
+    if os.environ.get("SKYFALL_TEST_MODE") == "1":
+        return _json({
+            "success": False,
+            "status": "blocked_test_mode",
+            "error": "External Power Platform sign-in is disabled in SKYFALL_TEST_MODE.",
+            "login_started": False,
+        })
+
     def sign_in() -> dict[str, Any]:
         azure = AzureProfileManager()
         profile = azure.store.create_profile(name, tenant or "", allow_tenant_discovery=True)

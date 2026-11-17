@@ -49,6 +49,14 @@ class AccountAuthToolTests(unittest.TestCase):
         self.assertEqual(result["profile_name"], "Company QA")
         self.assertEqual(jobs.started[0][0], "Power Platform sign-in: Company QA")
 
+    def test_powerplatform_login_is_blocked_in_test_mode(self):
+        jobs = FakeJobs()
+        with patch.object(accounts, "AUTH_JOBS", jobs), patch.dict("os.environ", {"SKYFALL_TEST_MODE": "1"}):
+            result = json.loads(accounts.start_powerplatform_login("Company QA"))
+        self.assertEqual(result["status"], "blocked_test_mode")
+        self.assertFalse(result["login_started"])
+        self.assertEqual(jobs.started, [])
+
     def test_powerplatform_login_accepts_optional_tenant_and_starts(self):
         jobs = FakeJobs()
         with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(accounts, "PowerPlatformAccountStore", FakePowerPlatformStore):

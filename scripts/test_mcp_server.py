@@ -366,7 +366,8 @@ async def run_server_test(local_app_data: Path) -> int:
                 "Azure login tool did not request missing tenant input."
             )
 
-        # Direct OAuth sign-in requires a configured public app client ID.
+        # Azure CLI-backed login requires no client ID. Keep browser auth blocked
+        # while this isolated smoke test exercises the tool.
         pp_login = await invoke_tool(
             client,
             "start_powerplatform_login",
@@ -375,19 +376,17 @@ async def run_server_test(local_app_data: Path) -> int:
         pp_login_payload = json_payload(
             pp_login, "start_powerplatform_login"
         )
-        if "client_id" not in pp_login_payload.get("requires_input", []):
+        if pp_login_payload.get("status") != "blocked_test_mode":
             raise RuntimeError(
-                "Power Platform sign-in did not request app registration setup."
+                "Power Platform browser sign-in was not blocked in isolated test mode."
             )
         if pp_login_payload.get("login_started") is True:
-            raise RuntimeError(
-                "Power Platform sign-in started without an app client ID."
-            )
+            raise RuntimeError("Power Platform sign-in started in isolated test mode.")
 
         # profile_name is required in the MCP schema. This is intentional:
         # Copilot should collect the profile name from the user before it calls
         # the tool. We therefore do not invoke this tool with empty arguments.
-        # The valid-name call above verifies the client-ID prerequisite.
+        # The valid-name call above verifies the test-mode guard.
 
         job_lookup = await invoke_tool(
             client,
@@ -400,7 +399,7 @@ async def run_server_test(local_app_data: Path) -> int:
         print("Power Platform profile/environment discovery tools: PASS")
         print("Microsoft account discovery tools: PASS (isolated test mode)")
         print("Required profile-name schema and sign-in job status: PASS")
-        print("Power Platform app client-ID prerequisite: PASS")
+        print("Power Platform sign-in test-mode guard: PASS")
 
         azure_inventory_tool = next(tool for tool in discovered.tools if tool.name == "inventory_azure_function_apps")
         azure_inventory_result = await invoke_tool(

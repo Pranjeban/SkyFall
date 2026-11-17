@@ -178,3 +178,12 @@ Updated `app/desktop/main_window.py` with a rounded app-shell structure, a two-r
 ### Assistant work summary
 
 Read the supplied design brief and applied its charcoal/violet, lighting-led, low-contrast surface rules to the full application theme. Updated floating assistant, status bar, radius scale, inputs, cards, selections, tables, and scrollbars. Documented the update in the v0.9.2 release notes and local memory. Syntax and whitespace checks passed; PySide6 visual QA remains pending.
+
+
+## New user message (2026-11-18)
+
+> FAIL: `test_environment_permission_failure_returns_safe_diagnostic` expected ?delegated environment read permission? in the safe diagnostic. `scripts/test_mcp_server.py` failed because Power Platform sign-in did not request app registration setup.
+
+### Assistant work summary
+
+Fixed the safe 401/403 diagnostic wording. The MCP test expected an outdated manual client ID prompt, so revised the smoke test for current Azure CLI-backed profile login and added a test-mode guard to prevent external browser sign-in. Added regression coverage. All 12 focused account/auth tests passed with an import-only `httpx` stub; syntax and diff checks passed. The MCP smoke test could not run in this workspace because the `mcp` package is missing.

@@ -62,3 +62,9 @@ Verification: Python syntax compilation passed. PySide6 is unavailable in the cu
 Applied the user's `Images/Design.md` specification across the desktop UI: near-black charcoal with a barely visible violet cast, 2?4% surface layering, softened contrast, rare muted-violet actions/focus, hairline borders, consistent 10/14/18/24px radii, quiet status colors, and restrained scrollbars. Updated the floating assistant and status bar to use the same palette. Kept the rounded app shell and session-first chat structure from the Kiro reference. Qt stylesheets do not provide true backdrop blur, so the glass effect is represented with opaque layered fills and subtle top-edge reflections.
 
 Verification: Python syntax compilation and `git diff --check` passed. Visual launch QA is still pending because PySide6 is unavailable in the current interpreter.
+
+## Power Platform diagnostics and MCP smoke-test expectation fix (2026-11-18)
+
+Updated safe 401/403 environment discovery diagnostics to explicitly name the delegated environment read permission. The MCP stdio smoke test had stale v0.9.1-era behavior expecting a manual Power Platform app client ID, while the current supported flow uses an isolated Azure CLI profile and browser sign-in. Updated the smoke test to assert the profile-name schema and that external sign-in is blocked in `SKYFALL_TEST_MODE`; added the corresponding guard in the Power Platform MCP login tool and unit coverage.
+
+The 12 focused Power Platform account/auth tool tests pass. Python compilation and `git diff --check` pass. The MCP stdio smoke test cannot run in this workspace because its configured interpreter lacks the `mcp` and `httpx` packages; rerun it in the project's configured Windows virtual environment.

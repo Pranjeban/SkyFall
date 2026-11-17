@@ -443,7 +443,7 @@ class PowerPlatformApi:
         if status in (401, 403):
             if dataverse:
                 return "Microsoft denied Dataverse flow metadata access. Confirm the app has delegated Dynamics CRM user_impersonation consent and that your account can read cloud flows in this environment."
-            return "Microsoft denied environment discovery. Confirm this account can access Power Platform environments and its sign-in can obtain the Power Apps API token."
+            return "Microsoft denied environment discovery. Confirm delegated environment read permission is granted and this account can access Power Platform environments."
         if status == 404:
             return "The selected environment or Power Platform API endpoint was not found. Refresh environment discovery and try again."
         if status == 429:

@@ -109,3 +109,8 @@ The user supplied a Kiro Crew screenshot and asked for the SKYFALL UI to match i
 ## 2026-11-17 ? Design.md visual system
 
 Applied the supplied visual language brief: minimal near-black charcoal surfaces, closely spaced light levels, subdued contrast, sparse violet accents, soft panel reflections, consistent rounded corners, restrained scrollbars and calmer motion. Harmonized the floating assistant and status bar.
+
+
+## 2026-11-18 ? Power Platform test failures
+
+Updated environment permission guidance to mention delegated environment read permission. Removed stale MCP smoke-test expectation for manual app client ID, switched it to assert safe test-mode blocking for Azure CLI-backed sign-in, and added an explicit test-mode guard. Focused unit tests pass; full MCP stdio smoke test awaits an environment with the MCP SDK installed.
