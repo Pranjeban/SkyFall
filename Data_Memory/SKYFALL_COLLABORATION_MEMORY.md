@@ -96,3 +96,18 @@ User feedback: the light v1.0 redesign looked very bad (especially the white cha
 ## Power Platform Azure-style sign-in (2026-11-17)
 
 User asked for Power Platform to use the same sign-in pattern as Azure and then list environments available to the signed-in account. Aligned the flow to one profile creation dialog (profile name plus optional tenant), Microsoft browser sign-in, automatic environment discovery, a refresh action, and a saved per-profile environment selector. Kept direct OAuth and removed no app registration requirement: Microsoft Learn states Power Platform API use requires an app registration. The PAC CLI is not used. Version note appended to `releases/v0.9.2/README_SKYFALL_V0_9_2.md`. Code updated; Windows live-account verification remains pending.
+
+
+## Power Platform no-client-ID sign-in correction (2026-11-17)
+
+The user shared a screenshot showing Add profile still opening a client ID dialog and explicitly said they will not enter a client ID. Replaced that desktop path with Azure's own browser login in a new isolated Azure CLI profile. The profile is linked to Power Platform, then environment discovery obtains short-lived tokens from that isolated CLI cache and calls the Power Apps environments API. Dataverse flow inventory uses a resource token for the selected Dataverse URL. The profile form keeps name and optional tenant only; no client ID prompt. Power Platform API setup note has been revised. The environment list is shown after sign-in; only environments with a Dataverse URL populate the flow inventory selector. Added removal of linked isolated profile on confirmed account removal. Official basis: Microsoft Dataverse-skills repo documents Azure CLI fallback via `az account get-access-token --resource https://service.powerapps.com/` and the Power Apps environments endpoint. Status: source updated; live Microsoft sign-in still requires the user's configured Windows environment to verify.
+
+
+## Kiro-style shell and chat refinement (2026-11-17)
+
+User requests the whole SKYFALL desktop shell to follow the supplied Kiro Crew screenshot closely: rounded app silhouette and cards, graphite/plum palette, violet accent, two-rail session/chat layout, and smooth scrolling. Implemented a lavender outer surround, rounded dark appSurface, simplified searchable session rail with compact New/actions, selected conversation title, rounded composer, eased wheel scrolling and thin scrollbars. The app version remains v0.9.2. `python -m py_compile app/desktop/main_window.py app/desktop/theme.py` passed; PySide6 is unavailable here, so actual rendered visual QA remains outstanding.
+
+
+## Design.md visual language applied (2026-11-17)
+
+User provided `C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\Design.md` and asked to implement it. The brief specifies a quiet premium workstation, near-black/violet charcoal, neutral layers separated by small luminance steps, rare accent color, softened contrast, smoked-glass treatment, restrained shadows, consistent 10/14/18/24px radii, and minimal scrollbars/motion. The latest `app/desktop/theme.py` block implements these values and overrides the earlier brighter Kiro palette. `main_window.py` also updates floating assistant hardcoded colors, status bar, and smooth wheel duration. Qt stylesheet does not support actual backdrop blur; the surface uses layered fills and subtle reflections as a practical approximation. App stays at v0.9.2. Syntax/diff checks passed; visual QA awaits a PySide6 Windows run.

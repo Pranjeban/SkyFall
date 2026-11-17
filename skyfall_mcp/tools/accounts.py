@@ -137,20 +137,23 @@ def list_powerplatform_auth_profiles() -> str:
         "success": True,
         "count": len(profiles),
         "profiles": [{**item, "active": item.get("profile_id") == active_id} for item in profiles],
-        "client_id_configured": bool(store.get_client_id()),
         "credential_material_returned": False,
     })
 
 
 def get_powerplatform_auth_status() -> str:
-    """Report selected SKYFALL Power Platform OAuth profile status."""
+    """Report selected Power Platform profile and its signed-in account status."""
     store = PowerPlatformAccountStore()
     active = store.get_profile(store.get_active_profile_id())
+    authenticated = active is not None
+    if active and active.get("azure_profile_id"):
+        authenticated = bool(
+            AzureProfileManager().get_auth_status(str(active["azure_profile_id"])).get("authenticated")
+        )
     return _json({
-        "authenticated": active is not None,
+        "authenticated": authenticated,
         "active_profile": active,
         "profile_count": len(store.list_profiles()),
-        "client_id_configured": bool(store.get_client_id()),
         "credential_material_returned": False,
     })
 
@@ -160,19 +163,30 @@ def list_powerplatform_environments() -> str:
     return _json(PowerPlatformApi().list_environments())
 
 
-def start_powerplatform_login(profile_name: str, tenant: str = "organizations") -> str:
-    """Start browser-based MSAL sign-in and save a named SKYFALL-local profile."""
+def start_powerplatform_login(profile_name: str, tenant: str = "") -> str:
+    """Start isolated Azure browser sign-in and discover accessible environments."""
     name = (profile_name or "").strip()
     if not name:
         return _json({"success": False, "requires_input": ["profile_name"], "message": "Provide a name for the Microsoft account profile."})
-    store = PowerPlatformAccountStore()
-    if not store.get_client_id():
-        return _json({"success": False, "requires_input": ["client_id"], "message": "Configure the Microsoft Entra desktop app client ID with configure_powerplatform_app, then start sign-in."})
-
     def sign_in() -> dict[str, Any]:
+        azure = AzureProfileManager()
+        profile = azure.store.create_profile(name, tenant or "", allow_tenant_discovery=True)
+        login = azure.login_profile(profile["profile_id"])
+        if not login.get("success"):
+            azure.store.delete_profile(profile["profile_id"])
+            raise RuntimeError(login.get("error") or "Microsoft sign-in did not complete.")
+        identity = login.get("auth") or {}
+        store = PowerPlatformAccountStore()
         api = PowerPlatformApi(store)
-        result = api.add_account(name, tenant or "organizations")
-        result["environments"] = api.list_environments()
+        api.attach_azure_profile(
+            profile["profile_id"],
+            name=profile["name"],
+            username=str(identity.get("user") or ""),
+            tenant_id=str(identity.get("tenant_id") or ""),
+        )
+        result = {"success": True, "profile": store.get_profile(profile["profile_id"])}
+        result["environments"] = api.list_environments(profile["profile_id"])
+        result["auth"] = azure.get_auth_status(profile["profile_id"])
         profiles = store.list_profiles()
         active_id = store.get_active_profile_id()
         result["profiles"] = {
@@ -187,8 +201,8 @@ def start_powerplatform_login(profile_name: str, tenant: str = "organizations") 
         "login_started": True,
         **job,
         "profile_name": name,
-        "tenant": tenant or "organizations",
-        "next_step": "Complete the Microsoft browser sign-in. Then call get_microsoft_auth_job_status with the returned job_id to view saved profile and environment results.",
+        "tenant": tenant or "",
+        "next_step": "Complete Microsoft browser sign-in. SKYFALL will then list accessible Power Platform environments. Call get_microsoft_auth_job_status to view results.",
         "credential_material_returned": False,
     })
 

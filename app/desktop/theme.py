@@ -177,35 +177,7 @@ QTextBrowser#placeholderText {
 }
 """
 
-APP_STYLESHEET += r"""
-QFrame#chatHistoryPanel {
-    background: #0E1528;
-    border: 1px solid #202B43;
-    border-radius: 13px;
-}
-QListWidget#conversationList {
-    background: transparent;
-    border: none;
-    outline: none;
-    color: #B8C5D8;
-    font-size: 12px;
-}
-QListWidget#conversationList::item {
-    padding: 10px 9px;
-    margin: 2px 0;
-    border: 1px solid transparent;
-    border-radius: 8px;
-}
-QListWidget#conversationList::item:hover {
-    background: #17233A;
-    color: #F2F6FC;
-}
-QListWidget#conversationList::item:selected {
-    background: #192B46;
-    color: #A9D4FF;
-    border: 1px solid #2C4B70;
-}
-"""
+
 
 APP_STYLESHEET += r"""
 QCheckBox {
@@ -407,4 +379,216 @@ QHeaderView::section { background: #29242F; color: #C8B8D7; border: 0; padding: 
 QScrollBar:vertical { background: transparent; width: 9px; margin: 2px; }
 QScrollBar::handle:vertical { background: rgba(159,130,179,130); border-radius: 4px; min-height: 24px; }
 QScrollBar::handle:vertical:hover { background: rgba(192,146,225,185); }
+"""
+
+# Kiro-style desktop frame and session-first chat workspace. Keep this final so
+# the established component rules inherit the graphite/plum application shell.
+APP_STYLESHEET += r"""
+QMainWindow { background: #C49AF2; }
+QWidget#appRoot { background: #C49AF2; }
+QFrame#appSurface {
+    background: #17151C; border: 1px solid #302938; border-radius: 24px;
+}
+QFrame#sidebar {
+    background: #1B1921; border: 0; border-right: 1px solid #302938;
+    border-top-left-radius: 24px; border-bottom-left-radius: 24px;
+}
+QWidget#contentHost { background: #17151C; border-top-right-radius: 24px; border-bottom-right-radius: 24px; }
+QFrame#topBar { background: #17151C; border: 0; border-bottom: 1px solid #302938; border-top-right-radius: 24px; }
+QStackedWidget#pageStack { background: #17151C; border-bottom-right-radius: 24px; }
+QWidget { color: #F1EDF5; }
+QWidget#sidebarNavigationContent { background: #1B1921; border: 1px solid #302938; border-radius: 16px; }
+QScrollArea#sidebarNavigationScroll { background: transparent; border: 0; }
+QFrame#chatHistoryPanel {
+    background: #201D26; border: 1px solid #383140; border-radius: 18px;
+}
+QFrame#panel, QFrame#metricCard, QFrame#quickCard, QFrame#accountPanel,
+QFrame#contextCard, QFrame#orchestrationHero, QFrame#capabilityCard {
+    background: #211E27; border: 1px solid #393240; border-radius: 16px;
+}
+QFrame#brandMark { background: #2C2335; border: 1px solid #60417C; border-radius: 13px; }
+QLabel#brandLetter { color: #C89BFF; }
+QLabel#brandName, QLabel#pageTitle, QLabel#sectionTitle, QLabel#contextValue,
+QLabel#capabilityTitle, QLabel#emptyStateTitle, QLabel#chatPageTitle { color: #F4F0F7; }
+QLabel#chatPageTitle { font-size: 21px; font-weight: 720; }
+QLabel#brandCaption, QLabel#muted, QLabel#metricLabel { color: #A79FAC; }
+QLabel#eyebrow, QLabel#stepNumber { color: #BA8BEE; }
+QPushButton#navButton { background: transparent; color: #B6AFBD; border: 1px solid transparent; border-radius: 10px; }
+QPushButton#navButton:hover { background: #29242F; color: #F3EEF7; }
+QPushButton#navButton:checked { background: #33283F; color: #D8B8FF; border: 1px solid #5F4376; }
+QPushButton#primaryButton { background: #8947E8; color: white; border: 1px solid #A76BF4; border-radius: 11px; padding: 9px 14px; }
+QPushButton#primaryButton:hover { background: #9A5AF4; border-color: #C293FF; }
+QPushButton#secondaryButton { background: #28242E; color: #DCD6E2; border: 1px solid #403847; border-radius: 11px; padding: 8px 11px; }
+QPushButton#secondaryButton:hover { background: #352D3D; border-color: #665079; }
+QPushButton#dangerButton { background: #39242D; color: #F0C9D5; border: 1px solid #69414F; border-radius: 11px; }
+QLineEdit, QPlainTextEdit, QTextEdit, QComboBox {
+    background: #211E27; color: #F0ECF4; border: 1px solid #403847;
+    border-radius: 10px; selection-background-color: #694297; selection-color: white;
+}
+QLineEdit#sessionSearch { background: #19171E; border: 1px solid #36303D; border-radius: 10px; padding: 8px 11px; }
+QLineEdit#sessionSearch:focus { border-color: #8958B4; }
+QListWidget#conversationList { background: transparent; border: 0; padding: 2px; color: #C9C2CF; }
+QListWidget#conversationList::item { border: 1px solid transparent; border-radius: 11px; padding: 11px 10px; margin: 2px 0; }
+QListWidget#conversationList::item:hover { background: #29242F; color: #F1EDF5; }
+QListWidget#conversationList::item:selected { background: #332A3D; color: #D7B7FF; border-color: #4C3A5D; }
+QScrollArea#chatScroll { background: #17151C; border: 0; border-radius: 0; }
+QWidget#chatMessageCanvas { background: #17151C; }
+QFrame#assistantMessage { background: #211E27; border: 1px solid #393340; border-radius: 16px; }
+QFrame#userMessage { background: #332641; border: 1px solid #60447B; border-radius: 16px; }
+QFrame#chatComposer { background: #201D26; border: 1px solid #4B3A59; border-radius: 16px; }
+QFrame#chatComposer:focus-within { border-color: #9A66D0; }
+QLineEdit#chatInput { background: transparent; border: 0; border-radius: 0; padding: 8px 3px; color: #F3EFF6; }
+QLineEdit#chatInput:focus { border: 0; }
+QMenu { background: #24202A; color: #F0ECF4; border: 1px solid #493D53; border-radius: 10px; padding: 5px; }
+QMenu::item { padding: 8px 22px 8px 12px; border-radius: 6px; }
+QMenu::item:selected { background: #3A2C49; color: #E1C7FF; }
+QScrollBar:vertical { background: transparent; width: 7px; margin: 3px 2px; }
+QScrollBar::handle:vertical { background: #51465B; border-radius: 3px; min-height: 28px; }
+QScrollBar::handle:vertical:hover { background: #8965A8; }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; height: 0; }
+QScrollBar:horizontal { background: transparent; height: 7px; margin: 2px 3px; }
+QScrollBar::handle:horizontal { background: #51465B; border-radius: 3px; min-width: 28px; }
+QStatusBar { background: #C49AF2; color: #3D2B4B; border: 0; padding: 2px 12px; font-size: 10px; }
+QStatusBar::item { border: 0; }
+"""
+
+APP_STYLESHEET += r"""
+QFrame#chatHistoryPanel {
+    background: #0E1528;
+    border: 1px solid #202B43;
+    border-radius: 13px;
+}
+QListWidget#conversationList {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #B8C5D8;
+    font-size: 12px;
+}
+QListWidget#conversationList::item {
+    padding: 10px 9px;
+    margin: 2px 0;
+    border: 1px solid transparent;
+    border-radius: 8px;
+}
+QListWidget#conversationList::item:hover {
+    background: #17233A;
+    color: #F2F6FC;
+}
+QListWidget#conversationList::item:selected {
+    background: #192B46;
+    color: #A9D4FF;
+    border: 1px solid #2C4B70;
+}
+"""
+
+# Design.md: quiet, lighting-led workstation surfaces. Keep neutral levels
+# closely spaced and reserve violet for selected, focused, or confirmed states.
+APP_STYLESHEET += r"""
+* {
+    font-family: "Segoe UI", "Arial", sans-serif;
+    color: #F0EFF2;
+}
+QMainWindow { background: #0B0911; }
+QWidget#appRoot { background: #0B0911; }
+QFrame#appSurface {
+    background: #100D15;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-top: 1px solid rgba(255,255,255,0.10);
+    border-radius: 24px;
+}
+QFrame#sidebar {
+    background: #100D15;
+    border: 0;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    border-top-left-radius: 24px;
+    border-bottom-left-radius: 24px;
+}
+QWidget#contentHost, QStackedWidget#pageStack { background: #100D15; }
+QFrame#topBar {
+    background: #100D15;
+    border: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-top-right-radius: 24px;
+}
+QWidget#sidebarNavigationContent { background: #120F18; border: 1px solid rgba(255,255,255,0.035); border-radius: 18px; }
+QScrollArea#sidebarNavigationScroll { background: transparent; border: 0; }
+QFrame#chatHistoryPanel {
+    background: #141119;
+    border: 1px solid rgba(255,255,255,0.065);
+    border-top: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px;
+}
+QFrame#panel, QFrame#metricCard, QFrame#quickCard, QFrame#accountPanel,
+QFrame#contextCard, QFrame#orchestrationHero, QFrame#capabilityCard,
+QFrame#emptyStateCard {
+    background: #18151E;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-top: 1px solid rgba(255,255,255,0.085);
+    border-radius: 14px;
+}
+QFrame#capabilityCard:hover, QFrame#quickCard:hover {
+    background: #1D1924;
+    border-color: rgba(255,255,255,0.10);
+}
+QFrame#brandMark { background: #17131D; border: 1px solid rgba(255,255,255,0.09); border-radius: 13px; }
+QLabel#brandLetter { color: #C7A9ED; }
+QLabel#brandName, QLabel#pageTitle, QLabel#sectionTitle, QLabel#contextValue,
+QLabel#capabilityTitle, QLabel#emptyStateTitle, QLabel#chatPageTitle { color: #F0EFF2; }
+QLabel#brandCaption, QLabel#muted, QLabel#metricLabel { color: #8A8A95; }
+QLabel#eyebrow, QLabel#stepNumber { color: #AAA2B2; }
+QLabel#capabilityDescription, QLabel#stepLabel { color: #B1B1BA; }
+QPushButton#navButton { background: transparent; color: #B1B1BA; border: 1px solid transparent; border-radius: 10px; }
+QPushButton#navButton:hover { background: #19161F; color: #F0EFF2; }
+QPushButton#navButton:checked { background: #211C2A; color: #D3C2E8; border: 1px solid rgba(181,145,221,0.20); }
+QPushButton#primaryButton { background: #745394; color: #F7F4FA; border: 1px solid rgba(193,160,229,0.24); border-radius: 10px; padding: 9px 14px; }
+QPushButton#primaryButton:hover { background: #80609F; border-color: rgba(206,178,235,0.35); }
+QPushButton#primaryButton:pressed { background: #634781; }
+QPushButton#primaryButton:disabled { background: #26222B; color: #696570; border-color: rgba(255,255,255,0.035); }
+QPushButton#secondaryButton { background: #19161F; color: #C8C5CD; border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; padding: 8px 11px; }
+QPushButton#secondaryButton:hover { background: #201C26; color: #F0EFF2; border-color: rgba(255,255,255,0.11); }
+QPushButton#dangerButton { background: #21171D; color: #D7B7C0; border: 1px solid rgba(202,135,153,0.18); border-radius: 10px; }
+QLineEdit, QPlainTextEdit, QTextEdit, QComboBox {
+    background: #15121A; color: #E7E5EA; border: 1px solid rgba(255,255,255,0.075);
+    border-radius: 10px; selection-background-color: #634B7D; selection-color: #F7F4FA;
+}
+QLineEdit#sessionSearch { background: #15121A; border-color: rgba(255,255,255,0.055); border-radius: 10px; padding: 8px 11px; }
+QLineEdit#sessionSearch:focus, QLineEdit#orchestrationInput:focus { border-color: rgba(183,145,223,0.60); }
+QComboBox QAbstractItemView { background: #18151E; color: #E7E5EA; selection-background-color: #282131; selection-color: #E2D4F2; border: 1px solid #38313F; }
+QCheckBox { color: #B1B1BA; }
+QCheckBox::indicator { background: #15121A; border: 1px solid rgba(255,255,255,0.15); border-radius: 4px; }
+QCheckBox::indicator:checked { background: #745394; border-color: #A889C8; }
+QListWidget#conversationList { background: transparent; border: 0; color: #B1B1BA; padding: 2px; }
+QListWidget#conversationList::item { border: 1px solid transparent; border-radius: 10px; padding: 11px 10px; margin: 2px 0; }
+QListWidget#conversationList::item:hover { background: #1B1821; color: #F0EFF2; }
+QListWidget#conversationList::item:selected { background: #211C2A; color: #D3C2E8; border-color: rgba(181,145,221,0.18); }
+QScrollArea#chatScroll, QWidget#chatMessageCanvas { background: #100D15; border: 0; }
+QFrame#assistantMessage { background: #18151E; border: 1px solid rgba(255,255,255,0.065); border-top: 1px solid rgba(255,255,255,0.09); border-radius: 14px; }
+QFrame#userMessage { background: #211C2A; border: 1px solid rgba(181,145,221,0.16); border-radius: 14px; }
+QLabel#messageText { color: #E7E5EA; }
+QFrame#chatComposer { background: #15121A; border: 1px solid rgba(255,255,255,0.08); border-top: 1px solid rgba(255,255,255,0.11); border-radius: 14px; }
+QLineEdit#chatInput { background: transparent; border: 0; border-radius: 0; padding: 8px 3px; color: #E7E5EA; }
+QLineEdit#chatInput:focus { border: 0; }
+QLabel#statusGood { color: #A8C8B8; background: #17211D; border-color: rgba(123,174,146,0.14); }
+QLabel#statusPending { color: #D0BD9A; background: #211D17; border-color: rgba(192,158,101,0.15); }
+QLabel#statusOffline { color: #AAA6B0; background: #1B1920; border-color: rgba(255,255,255,0.06); }
+QLabel#readOnlyBadge { color: #B3CFC1; background: #17211D; border-color: rgba(123,174,146,0.14); }
+QLabel#operationStatus { color: #B1B1BA; background: #15121A; border-color: rgba(255,255,255,0.06); }
+QProgressBar#orchestrationProgress { background: #211D26; border: 1px solid rgba(255,255,255,0.06); border-radius: 5px; }
+QProgressBar#orchestrationProgress::chunk { background: #8567A3; border-radius: 4px; }
+QTableWidget { background: #15121A; alternate-background-color: #19161F; color: #D8D6DC; border: 1px solid rgba(255,255,255,0.06); gridline-color: rgba(255,255,255,0.035); selection-background-color: #282131; }
+QHeaderView::section { background: #18151E; color: #AAA6B0; border: 0; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 9px; }
+QMenu { background: #18151E; color: #E7E5EA; border: 1px solid #38313F; border-radius: 10px; padding: 5px; }
+QMenu::item { padding: 8px 22px 8px 12px; border-radius: 6px; }
+QMenu::item:selected { background: #282131; color: #D3C2E8; }
+QScrollBar:vertical { background: transparent; width: 7px; margin: 3px 2px; }
+QScrollBar::handle:vertical { background: rgba(180,174,190,0.24); border-radius: 3px; min-height: 28px; }
+QScrollBar::handle:vertical:hover { background: rgba(193,165,222,0.40); }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: transparent; height: 0; }
+QScrollBar:horizontal { background: transparent; height: 7px; margin: 2px 3px; }
+QScrollBar::handle:horizontal { background: rgba(180,174,190,0.24); border-radius: 3px; min-width: 28px; }
+QStatusBar { background: #0B0911; color: #8A8A95; border: 0; padding: 2px 12px; font-size: 10px; }
+QStatusBar::item { border: 0; }
 """

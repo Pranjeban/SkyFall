@@ -158,3 +158,23 @@ Assistant recorded the MCP test resolution in memory.
 ### Assistant work summary
 
 Created `releases/v1.0/README_SKYFALL_V1_0.md` and updated project direction. Added a redesigned Execution Center with ten workflow stages, workspace metadata search, script parameter/import summary, account/tenant and environment display without secrets, progress status, explicit approval, and native read-only Dataverse report generation. Updated app theme to light stone/slate/teal. External references reviewed: Dribbble, Behance, Microsoft Fluent progress guidance. The working app version remains 0.9.2 until general controlled script execution and all v1.0 gates are complete. Syntax and diff checks passed; desktop visual QA is pending.
+
+
+## New user message (2026-11-17)
+
+> I want designs to be exactly like this exacltly round edges and all everything color pattelte the whole design the scroll effect and all everything
+
+The message included a Kiro Crew desktop screenshot and a `https://kiro.dev/` reference.
+
+### Assistant work summary
+
+Updated `app/desktop/main_window.py` with a rounded app-shell structure, a two-rail searchable session layout, compact conversation actions, active conversation heading, rounded chat composer, and eased scrolling. Added a final graphite/plum/violet stylesheet with a lavender frame surround and slim scrollbars in `app/desktop/theme.py`. Updated v0.9.2 release notes and memory. Python syntax compilation passed; visual run is pending because PySide6 is unavailable in the current interpreter.
+
+
+## New user message (2026-11-17)
+
+> "C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\Design.md" Design this please according to this
+
+### Assistant work summary
+
+Read the supplied design brief and applied its charcoal/violet, lighting-led, low-contrast surface rules to the full application theme. Updated floating assistant, status bar, radius scale, inputs, cards, selections, tables, and scrollbars. Documented the update in the v0.9.2 release notes and local memory. Syntax and whitespace checks passed; PySide6 visual QA remains pending.

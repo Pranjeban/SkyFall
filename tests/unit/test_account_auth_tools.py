@@ -41,17 +41,15 @@ class AccountAuthToolTests(unittest.TestCase):
         self.assertEqual(result["status"], "blocked_test_mode")
         self.assertFalse(result["login_started"])
 
-    def test_powerplatform_login_requires_client_app_setup(self):
+    def test_powerplatform_login_does_not_require_a_client_app_id(self):
         jobs = FakeJobs()
-        store = FakePowerPlatformStore()
-        store.client_id = ""
-        with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(accounts, "PowerPlatformAccountStore", lambda: store):
+        with patch.object(accounts, "AUTH_JOBS", jobs):
             result = json.loads(accounts.start_powerplatform_login("Company QA"))
-        self.assertEqual(result["requires_input"], ["client_id"])
-        self.assertFalse(result.get("login_started", False))
-        self.assertEqual(jobs.started, [])
+        self.assertTrue(result["login_started"])
+        self.assertEqual(result["profile_name"], "Company QA")
+        self.assertEqual(jobs.started[0][0], "Power Platform sign-in: Company QA")
 
-    def test_powerplatform_login_starts_after_app_setup(self):
+    def test_powerplatform_login_accepts_optional_tenant_and_starts(self):
         jobs = FakeJobs()
         with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(accounts, "PowerPlatformAccountStore", FakePowerPlatformStore):
             result = json.loads(accounts.start_powerplatform_login("Company QA", "contoso.com"))

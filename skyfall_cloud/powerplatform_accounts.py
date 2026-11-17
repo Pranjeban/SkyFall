@@ -1,7 +1,8 @@
-"""Per-user Power Platform OAuth profiles and read-only REST discovery.
+"""Per-user Power Platform profiles and read-only REST discovery.
 
-Tokens are cached per SKYFALL profile using MSAL Extensions' platform
-protection (Windows DPAPI). Profile metadata contains no credentials.
+New profiles share an isolated Azure CLI browser-login cache. Legacy MSAL
+profiles remain readable for compatibility. Profile metadata contains no
+credential material.
 """
 
 from __future__ import annotations
@@ -80,7 +81,8 @@ class PowerPlatformAccountStore:
         data = self._read()
         return [
             {key: item.get(key) for key in (
-                "profile_id", "name", "username", "tenant_id", "created_at", "selected_environment_id"
+                "profile_id", "name", "username", "tenant_id", "created_at",
+                "selected_environment_id", "azure_profile_id", "auth_method"
             )}
             for item in data["profiles"]
         ]
@@ -139,7 +141,7 @@ class PowerPlatformAccountStore:
 
 
 class PowerPlatformApi:
-    """Delegated OAuth access to Power Platform and Dataverse read APIs."""
+    """Delegated access to Power Platform and Dataverse read APIs."""
 
     def __init__(self, store: PowerPlatformAccountStore | None = None, *, http_client=httpx) -> None:
         self.store = store or PowerPlatformAccountStore()
@@ -210,6 +212,28 @@ class PowerPlatformApi:
         profile = self.store.select_profile(profile_id)
         return {"success": True, "profile": profile}
 
+    def attach_azure_profile(
+        self,
+        azure_profile_id: str,
+        *,
+        name: str,
+        username: str = "",
+        tenant_id: str = "",
+    ) -> dict[str, Any]:
+        """Use an isolated Azure browser-login profile for Power Platform."""
+        profile = {
+            "profile_id": azure_profile_id,
+            "azure_profile_id": azure_profile_id,
+            "auth_method": "azure_cli",
+            "name": (name or "Power Platform account")[:80],
+            "username": (username or "Signed-in Microsoft account")[:200],
+            "tenant_id": (tenant_id or "")[:200],
+            "created_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "selected_environment_id": "",
+        }
+        self.store.upsert_profile(profile)
+        return {"success": True, "profile": profile}
+
     def remove_profile(self, profile_id: str) -> None:
         self.store.remove_profile(profile_id)
 
@@ -217,6 +241,14 @@ class PowerPlatformApi:
         profile = self.store.get_profile(profile_id)
         if profile is None:
             raise RuntimeError("Select a saved Power Platform account before continuing.")
+        azure_profile_id = str(profile.get("azure_profile_id") or "")
+        if azure_profile_id:
+            resource = str(scopes[0] if scopes else "").removesuffix("/.default").rstrip("/")
+            if not resource:
+                raise RuntimeError("A Power Platform API resource is required for this request.")
+            from .azure_profiles import AzureProfileManager
+
+            return AzureProfileManager().get_access_token(azure_profile_id, resource)
         app, _cache = self._client(profile_id)
         accounts = app.get_accounts(username=profile.get("username"))
         result = app.acquire_token_silent(scopes, account=accounts[0]) if accounts else None
@@ -234,6 +266,10 @@ class PowerPlatformApi:
         if not target:
             return {"success": False, "error": "Add or select a Microsoft account profile first.", "environments": []}
         try:
+            selected_profile = self.store.get_profile(target)
+            azure_profile_id = str((selected_profile or {}).get("azure_profile_id") or "")
+            if azure_profile_id:
+                return self._list_environments_with_azure_cli(target, azure_profile_id)
             token = self._access_token(target, [API_SCOPE])
             url = f"{API_BASE}/environmentmanagement/environments"
             params: dict[str, Any] | None = {"api-version": API_VERSION, "$top": 100}
@@ -277,6 +313,69 @@ class PowerPlatformApi:
             return {"success": True, "count": len(rows), "environments": rows, "discovery_format": "power_platform_rest_api", "profile_id": target}
         except Exception as exc:
             return {"success": False, "error": str(exc)[:700], "environments": [], "profile_id": target}
+
+    def _list_environments_with_azure_cli(self, profile_id: str, azure_profile_id: str) -> dict[str, Any]:
+        """List accessible Power Apps environments with the signed-in Azure CLI profile."""
+        from .azure_profiles import AzureProfileManager
+
+        token = AzureProfileManager().get_access_token(azure_profile_id, "https://service.powerapps.com/")
+        url = "https://api.powerapps.com/providers/Microsoft.PowerApps/environments"
+        rows: list[dict[str, Any]] = []
+        params: dict[str, Any] | None = {"api-version": "2016-11-01"}
+        for _page in range(100):
+            response = self.http.get(
+                url,
+                params=params,
+                headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                timeout=45,
+            )
+            params = None
+            if response.status_code >= 400:
+                return {
+                    "success": False,
+                    "error": self._http_error(response.status_code),
+                    "diagnostic_code": self._diagnostic_code(response.status_code),
+                    "http_status": response.status_code,
+                    "environments": [],
+                    "profile_id": profile_id,
+                }
+            data = response.json()
+            raw_rows = data.get("value", data.get("environments", [])) if isinstance(data, dict) else data
+            for item in raw_rows if isinstance(raw_rows, list) else []:
+                if not isinstance(item, dict):
+                    continue
+                properties = item.get("properties") if isinstance(item.get("properties"), dict) else {}
+                linked = properties.get("linkedEnvironmentMetadata") if isinstance(properties.get("linkedEnvironmentMetadata"), dict) else {}
+                environment_id = str(
+                    properties.get("environmentId") or item.get("name") or item.get("id") or ""
+                ).strip().strip("{}")
+                display_name = str(properties.get("displayName") or item.get("displayName") or item.get("name") or "Unnamed environment")
+                environment_url = str(
+                    linked.get("instanceUrl") or properties.get("instanceUrl") or properties.get("environmentUrl") or ""
+                ).rstrip("/")
+                rows.append({
+                    "name": display_name,
+                    "type": str(properties.get("environmentSku") or properties.get("environmentType") or "Environment"),
+                    "environment_id": environment_id,
+                    "environment_url": environment_url,
+                    "organization_id": str(linked.get("instanceId") or linked.get("organizationId") or ""),
+                    "region": str(properties.get("azureRegion") or properties.get("region") or ""),
+                    "tenant_id": str(properties.get("tenantId") or ""),
+                    "state": str(properties.get("provisioningState") or properties.get("state") or "Ready"),
+                })
+            next_link = (data.get("nextLink") or data.get("@odata.nextLink")) if isinstance(data, dict) else ""
+            if not next_link:
+                break
+            url = _safe_next_link(url, next_link, "api.powerapps.com")
+        else:
+            raise RuntimeError("Environment discovery exceeded the 100-page safety limit.")
+        return {
+            "success": True,
+            "count": len(rows),
+            "environments": rows,
+            "discovery_format": "azure_cli_power_apps_api",
+            "profile_id": profile_id,
+        }
 
     def list_flows(self, profile_id: str, environment_url: str) -> list[dict[str, Any]]:
         base = (environment_url or "").strip().rstrip("/")
@@ -344,7 +443,7 @@ class PowerPlatformApi:
         if status in (401, 403):
             if dataverse:
                 return "Microsoft denied Dataverse flow metadata access. Confirm the app has delegated Dynamics CRM user_impersonation consent and that your account can read cloud flows in this environment."
-            return "Microsoft denied environment discovery. Confirm Power Platform API delegated environment read permission and tenant consent for this app."
+            return "Microsoft denied environment discovery. Confirm this account can access Power Platform environments and its sign-in can obtain the Power Apps API token."
         if status == 404:
             return "The selected environment or Power Platform API endpoint was not found. Refresh environment discovery and try again."
         if status == 429:

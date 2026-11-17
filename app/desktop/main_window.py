@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
-from PySide6.QtCore import Qt, QTimer, Signal, QUrl
-from PySide6.QtGui import QKeySequence, QShortcut, QTextDocument, QDesktopServices
+from PySide6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, Signal, QUrl
+from PySide6.QtGui import QKeySequence, QShortcut, QTextDocument, QDesktopServices, QWheelEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QMenu,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -86,6 +87,31 @@ class MarkdownMessageLabel(QLabel):
         self.setWordWrap(True)
 
 
+class SmoothScrollArea(QScrollArea):
+    """Small eased wheel movement for the Kiro-style quiet scroll surfaces."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._wheel_animation = QPropertyAnimation(self.verticalScrollBar(), b"value", self)
+        self._wheel_animation.setDuration(180)
+        self._wheel_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.verticalScrollBar().setSingleStep(28)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt override
+        bar = self.verticalScrollBar()
+        delta = event.pixelDelta().y()
+        if not delta:
+            delta = int(event.angleDelta().y() / 120 * 54)
+        if not delta:
+            super().wheelEvent(event)
+            return
+        self._wheel_animation.stop()
+        self._wheel_animation.setStartValue(bar.value())
+        self._wheel_animation.setEndValue(max(bar.minimum(), min(bar.maximum(), bar.value() - delta)))
+        self._wheel_animation.start()
+        event.accept()
+
+
 
 class FloatingAssistant(QDialog):
     """Compact entry point that sends messages to the current main conversation."""
@@ -97,7 +123,7 @@ class FloatingAssistant(QDialog):
         self.setWindowTitle("SKYFALL Assistant")
         self.setMinimumWidth(390)
         self.setMaximumWidth(470)
-        self.setStyleSheet("background:#17141D; color:#F0ECF4;")
+        self.setStyleSheet("background:#141119; color:#F0EFF2; border:1px solid rgba(255,255,255,0.07); border-radius:18px;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -105,9 +131,9 @@ class FloatingAssistant(QDialog):
 
         header = QHBoxLayout()
         title = QLabel("SKYFALL")
-        title.setStyleSheet("font-size:18px;font-weight:800;letter-spacing:3px;color:#F4EFF8;")
+        title.setStyleSheet("font-size:17px;font-weight:600;letter-spacing:2px;color:#F0EFF2;")
         subtitle = QLabel("PERSONAL ENGINEERING INTELLIGENCE")
-        subtitle.setStyleSheet("font-size:9px;color:#A69EAD;letter-spacing:1px;")
+        subtitle.setStyleSheet("font-size:9px;color:#8A8A95;letter-spacing:1px;")
         brand_col = QVBoxLayout()
         brand_col.addWidget(title)
         brand_col.addWidget(subtitle)
@@ -117,7 +143,7 @@ class FloatingAssistant(QDialog):
         close_button = QPushButton("×")
         close_button.setFixedSize(30, 30)
         close_button.setStyleSheet(
-            "background:#211D27;color:#E3DCE9;border:1px solid #554A60;border-radius:8px;font-size:18px;"
+            "background:#19161F;color:#C8C5CD;border:1px solid rgba(255,255,255,0.07);border-radius:8px;font-size:18px;"
         )
         close_button.clicked.connect(self.hide)
         header.addWidget(close_button)
@@ -129,8 +155,8 @@ class FloatingAssistant(QDialog):
         )
         info.setWordWrap(True)
         info.setStyleSheet(
-            "color:#B7AFC0;font-size:12px;padding:10px;background:#302A37;"
-            "border:1px solid #554A60;border-radius:9px;"
+            "color:#B1B1BA;font-size:12px;padding:10px;background:#18151E;"
+            "border:1px solid rgba(255,255,255,0.06);border-radius:10px;"
         )
         layout.addWidget(info)
 
@@ -138,13 +164,13 @@ class FloatingAssistant(QDialog):
         self.input = QLineEdit()
         self.input.setPlaceholderText("Ask Skyfall...")
         self.input.setStyleSheet(
-            "background:#25212B;color:#F0ECF4;border:1px solid #594769;border-radius:9px;"
+            "background:#15121A;color:#E7E5EA;border:1px solid rgba(255,255,255,0.075);border-radius:10px;"
             "padding:11px;"
         )
         self.input.returnPressed.connect(self._submit)
         send = QPushButton("Send")
         send.setStyleSheet(
-            "background:#8751B5;color:#FFFFFF;border:1px solid #A26AD0;border-radius:9px;"
+            "background:#745394;color:#F7F4FA;border:1px solid rgba(193,160,229,0.24);border-radius:10px;"
             "padding:10px 14px;font-weight:650;"
         )
         send.clicked.connect(self._submit)
@@ -304,7 +330,7 @@ class AzureProfileCreateDialog(QDialog):
 
 
 class PowerPlatformProfileCreateDialog(QDialog):
-    """Collect a named Power Platform profile before direct Microsoft OAuth."""
+    """Collect a named Power Platform profile before the Azure browser sign-in."""
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -318,7 +344,7 @@ class PowerPlatformProfileCreateDialog(QDialog):
         heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4EFF8;")
         layout.addWidget(heading)
         info = QLabel(
-            "SKYFALL opens Microsoft sign-in in your browser, saves this account as a local profile, "
+            "SKYFALL opens the same Microsoft browser sign-in used for Azure, saves this account as a local profile, "
             "then lists the environments that account can access."
         )
         info.setObjectName("muted")
@@ -370,7 +396,7 @@ class PowerPlatformProfileCreateDialog(QDialog):
 
     @property
     def tenant(self) -> str:
-        return self.tenant_edit.text().strip() or "organizations"
+        return self.tenant_edit.text().strip()
 
 
 class MainWindow(QMainWindow):
@@ -415,6 +441,7 @@ class MainWindow(QMainWindow):
         self.chat_layout: QVBoxLayout | None = None
         self.chat_scroll: QScrollArea | None = None
         self.history_list: QListWidget | None = None
+        self.history_search_input: QLineEdit | None = None
         self.new_chat_button: QPushButton | None = None
         self.delete_chat_button: QPushButton | None = None
         self.chat_input: QLineEdit | None = None
@@ -441,7 +468,6 @@ class MainWindow(QMainWindow):
         self.azure_inventory_report_path: str | None = None
         self.pp_status_label: QLabel | None = None
         self.pp_profile_combo: QComboBox | None = None
-        self.pp_configure_app_button: QPushButton | None = None
         self.pp_refresh_environments_button: QPushButton | None = None
         self.pp_profiles_table: QTableWidget | None = None
         self.pp_environments_table: QTableWidget | None = None
@@ -469,12 +495,20 @@ class MainWindow(QMainWindow):
 
         root = QWidget()
         root.setObjectName("appRoot")
+        root.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         root_layout = QHBoxLayout(root)
-        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setContentsMargins(9, 8, 9, 8)
         root_layout.setSpacing(0)
 
+        app_surface = QFrame()
+        app_surface.setObjectName("appSurface")
+        app_surface.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        surface_layout = QHBoxLayout(app_surface)
+        surface_layout.setContentsMargins(0, 0, 0, 0)
+        surface_layout.setSpacing(0)
+
         self.sidebar = self._build_sidebar()
-        root_layout.addWidget(self.sidebar)
+        surface_layout.addWidget(self.sidebar)
 
         content_host = QWidget()
         content_host.setObjectName("contentHost")
@@ -486,6 +520,7 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.top_bar)
 
         self.stack = QStackedWidget()
+        self.stack.setObjectName("pageStack")
         self.pages: dict[str, QWidget] = {}
         self.pages["overview"] = self._build_overview()
         self.pages["chat"] = self._build_chat_page()
@@ -507,7 +542,8 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(page)
 
         content_layout.addWidget(self.stack, 1)
-        root_layout.addWidget(content_host, 1)
+        surface_layout.addWidget(content_host, 1)
+        root_layout.addWidget(app_surface, 1)
         self.setCentralWidget(root)
 
         self._select_page("overview")
@@ -518,9 +554,6 @@ class MainWindow(QMainWindow):
         self._refresh_azure_profile_choices()
 
         self.statusBar().showMessage("SKYFALL desktop ready · Starting Copilot AI runtime...")
-        self.statusBar().setStyleSheet(
-            "background:#211D27;color:#A69EAD;border-top:1px solid #342D3C;padding:4px;"
-        )
 
         self.copilot_worker = CopilotWorker(
             session_id=self.current_conversation.copilot_session_id,
@@ -572,7 +605,7 @@ class MainWindow(QMainWindow):
         brand_row.addStretch(1)
         layout.addLayout(brand_row)
 
-        navigation_scroll = QScrollArea()
+        navigation_scroll = SmoothScrollArea()
         navigation_scroll.setObjectName("sidebarNavigationScroll")
         navigation_scroll.setWidgetResizable(True)
         navigation_scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -632,7 +665,7 @@ class MainWindow(QMainWindow):
     def _build_top_bar(self) -> QFrame:
         bar = QFrame()
         bar.setObjectName("topBar")
-        bar.setFixedHeight(70)
+        bar.setFixedHeight(58)
         layout = QHBoxLayout(bar)
         layout.setContentsMargins(27, 0, 27, 0)
         title = QLabel("Overview")
@@ -721,25 +754,37 @@ class MainWindow(QMainWindow):
 
         history_panel = QFrame()
         history_panel.setObjectName("chatHistoryPanel")
-        history_panel.setFixedWidth(238)
+        history_panel.setFixedWidth(270)
         history_layout = QVBoxLayout(history_panel)
         history_layout.setContentsMargins(12, 14, 12, 12)
         history_layout.setSpacing(10)
 
-        history_header = QLabel("CONVERSATIONS")
+        history_header = QLabel("SESSIONS")
         history_header.setObjectName("eyebrow")
         history_layout.addWidget(history_header)
 
-        self.new_chat_button = QPushButton("＋  New conversation")
-        self.new_chat_button.setObjectName("secondaryButton")
+        actions = QHBoxLayout()
+        actions.setSpacing(7)
+        self.new_chat_button = QPushButton("+  New")
+        self.new_chat_button.setObjectName("primaryButton")
         self.new_chat_button.clicked.connect(self._create_new_conversation)
-        history_layout.addWidget(self.new_chat_button)
+        actions.addWidget(self.new_chat_button, 1)
+        self.delete_chat_button = QPushButton("???")
+        self.delete_chat_button.setObjectName("secondaryButton")
+        self.delete_chat_button.setFixedWidth(38)
+        self.delete_chat_button.setToolTip("Conversation actions")
+        menu = QMenu(self.delete_chat_button)
+        menu.addAction("Delete selected conversation", self._delete_selected_conversation)
+        self.delete_chat_button.setMenu(menu)
+        actions.addWidget(self.delete_chat_button)
+        history_layout.addLayout(actions)
 
-        self.delete_chat_button = QPushButton("Delete selected conversation")
-        self.delete_chat_button.setObjectName("dangerButton")
-        self.delete_chat_button.setToolTip("Remove this conversation and its local transcript")
-        self.delete_chat_button.clicked.connect(self._delete_selected_conversation)
-        history_layout.addWidget(self.delete_chat_button)
+        self.history_search_input = QLineEdit()
+        self.history_search_input.setObjectName("sessionSearch")
+        self.history_search_input.setPlaceholderText("Search sessions...")
+        self.history_search_input.setClearButtonEnabled(True)
+        self.history_search_input.textChanged.connect(self._filter_conversation_list)
+        history_layout.addWidget(self.history_search_input)
 
         self.history_list = QListWidget()
         self.history_list.setObjectName("conversationList")
@@ -747,7 +792,7 @@ class MainWindow(QMainWindow):
         self.history_list.currentItemChanged.connect(self._on_history_selection_changed)
         history_layout.addWidget(self.history_list, 1)
 
-        history_note = QLabel("Your chat history is stored in the local SKYFALL database.")
+        history_note = QLabel("Older sessions · stored locally")
         history_note.setObjectName("muted")
         history_note.setWordWrap(True)
         history_layout.addWidget(history_note)
@@ -760,11 +805,11 @@ class MainWindow(QMainWindow):
 
         header = QHBoxLayout()
         title_col = QVBoxLayout()
-        title = QLabel("Talk to SKYFALL")
-        title.setStyleSheet("font-size:23px;font-weight:750;color:#F4EFF8;")
+        title = QLabel(self.current_conversation.title or "New conversation")
+        title.setObjectName("chatPageTitle")
+        self.chat_page_title = title
         subtitle = QLabel(
-            "Your Copilot conversation is private to your signed-in account and this local application. "
-            "Operational tools are not enabled yet."
+            "Your conversation is private to this local SKYFALL session."
         )
         subtitle.setObjectName("muted")
         subtitle.setWordWrap(True)
@@ -774,7 +819,7 @@ class MainWindow(QMainWindow):
         header.addLayout(title_col, 1)
         conversation_layout.addLayout(header)
 
-        self.chat_scroll = QScrollArea()
+        self.chat_scroll = SmoothScrollArea()
         self.chat_scroll.setWidgetResizable(True)
         self.chat_scroll.setObjectName("chatScroll")
         messages_host = QWidget()
@@ -786,17 +831,23 @@ class MainWindow(QMainWindow):
         self.chat_scroll.setWidget(messages_host)
         conversation_layout.addWidget(self.chat_scroll, 1)
 
-        input_row = QHBoxLayout()
+        composer = QFrame()
+        composer.setObjectName("chatComposer")
+        input_row = QHBoxLayout(composer)
+        input_row.setContentsMargins(12, 8, 8, 8)
+        input_row.setSpacing(8)
         self.chat_input = QLineEdit()
         self.chat_input.setObjectName("chatInput")
+        self.chat_input.setFrame(False)
         self.chat_input.setPlaceholderText("Ask SKYFALL to explain, plan or help with an engineering problem...")
         self.chat_input.returnPressed.connect(self._send_chat_message)
-        self.chat_send_button = QPushButton("Send")
+        self.chat_send_button = QPushButton("?")
         self.chat_send_button.setObjectName("primaryButton")
+        self.chat_send_button.setFixedSize(38, 38)
         self.chat_send_button.clicked.connect(self._send_chat_message)
         input_row.addWidget(self.chat_input, 1)
         input_row.addWidget(self.chat_send_button)
-        conversation_layout.addLayout(input_row)
+        conversation_layout.addWidget(composer)
 
         body.addWidget(conversation_panel, 1)
         layout.addLayout(body, 1)
@@ -809,7 +860,7 @@ class MainWindow(QMainWindow):
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = SmoothScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -1452,8 +1503,8 @@ class MainWindow(QMainWindow):
         title.setObjectName("pageTitle")
         layout.addWidget(title)
         intro = QLabel(
-            "Sign in with Microsoft OAuth, keep account profiles private to SKYFALL, and discover environments automatically. "
-            "Profile selection is local to this app and never changes another terminal's account."
+            "Sign in through the same Microsoft browser flow as Azure, then discover environments available to your account. "
+            "Each profile uses an isolated SKYFALL credential folder and leaves your regular Azure CLI account untouched."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
@@ -1484,11 +1535,6 @@ class MainWindow(QMainWindow):
             lambda: self._start_microsoft_worker("powerplatform_environments")
         )
         buttons.addWidget(self.pp_refresh_environments_button)
-        self.pp_configure_app_button = QPushButton("App registration setup")
-        self.pp_configure_app_button.setObjectName("secondaryButton")
-        self.pp_configure_app_button.clicked.connect(self._configure_powerplatform_app)
-        self.pp_configure_app_button.setVisible(not bool(self.powerplatform_account_store.get_client_id()))
-        buttons.addWidget(self.pp_configure_app_button)
         remove_account = QPushButton("Remove account")
         remove_account.setObjectName("dangerButton")
         remove_account.clicked.connect(self._remove_powerplatform_profile)
@@ -1521,8 +1567,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pp_environments_table, 1)
 
         note = QLabel(
-            "Power Platform API sign-in uses direct Microsoft OAuth (no PAC CLI). Microsoft requires a registered desktop/public client app; configure its client ID once, enable public client flows, and grant delegated Power Platform environment read and Dynamics CRM user_impersonation permissions. "
-            "Account tokens are cached per profile using OS-protected MSAL storage. Environment discovery runs after sign-in and when you refresh. "
+            "Add profile opens the same Microsoft browser sign-in used by Azure. SKYFALL keeps its Azure CLI token cache in an isolated profile, lists accessible Power Platform environments automatically, and does not need PAC CLI or a manually entered client ID. "
+            "Environment discovery runs after sign-in and when you refresh. The flow selector includes environments with a Dataverse URL. "
             "Flow inventory uses Dataverse metadata columns only; definitions, connections and secrets are excluded."
         )
         note.setObjectName("muted")
@@ -1536,7 +1582,7 @@ class MainWindow(QMainWindow):
         outer = QVBoxLayout(page)
         outer.setContentsMargins(0, 0, 0, 0)
 
-        scroll = QScrollArea()
+        scroll = SmoothScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -1700,7 +1746,7 @@ class MainWindow(QMainWindow):
             "Coverage is limited to cloud flows visible to the selected Microsoft account in the selected environment. "
             "Flow definitions, action payloads, connection details and secrets are never exported. "
             "The documented Dataverse code path covers solution cloud flows; My Flows is not currently supported. "
-            "A Dataverse environment permission and the app registration consent are required."
+            "The signed-in account must have permission to read flows in the selected Dataverse environment."
         )
         note.setObjectName("muted")
         note.setWordWrap(True)
@@ -1787,7 +1833,7 @@ class MainWindow(QMainWindow):
             self.azure_profile_combo.addItem("All connected Azure accounts", "all")
             profiles = self.azure_profile_manager.store.list_profiles()
             for profile in profiles:
-                suffix = " · tenant required" if profile.get("kind") == "skyfall_isolated_profile" and not profile.get("tenant_hint") else ""
+                suffix = " · home tenant auto-detected" if profile.get("kind") == "skyfall_isolated_profile" and not profile.get("tenant_hint") else ""
                 self.azure_profile_combo.addItem(profile["name"] + suffix, profile["profile_id"])
         except Exception as exc:
             self.azure_profile_combo.addItem(f"Profile registry error: {exc}", "all")
@@ -1853,17 +1899,7 @@ class MainWindow(QMainWindow):
             )
             return
         try:
-            profile = self.azure_profile_manager.store.get_profile(profile_id)
-            tenant = str(profile.get("tenant_hint") or "")
-            if not tenant:
-                tenant, accepted = QInputDialog.getText(
-                    self,
-                    "Configure Azure tenant",
-                    "Tenant ID (GUID) or verified tenant domain:",
-                )
-                if not accepted or not tenant.strip():
-                    return
-                self.azure_profile_manager.store.update_tenant_hint(profile_id, tenant)
+            self.azure_profile_manager.store.get_profile(profile_id)
             self._start_microsoft_worker("azure_login", profile_id)
         except Exception as exc:
             QMessageBox.critical(self, "Could not start Azure sign-in", str(exc))
@@ -1892,6 +1928,9 @@ class MainWindow(QMainWindow):
         elif action == "powerplatform_login":
             if self.pp_status_label:
                 self.pp_status_label.setText("Opening Microsoft sign-in for this SKYFALL account. Environments will refresh automatically after sign-in.")
+        elif action == "powerplatform_azure_login":
+            if self.pp_status_label:
+                self.pp_status_label.setText("Opening the Azure browser sign-in for this Power Platform profile. Accessible environments will load after sign-in.")
         elif action == "powerplatform_select":
             if self.pp_status_label:
                 self.pp_status_label.setText("Switching the selected SKYFALL account and refreshing its environments...")
@@ -1923,48 +1962,27 @@ class MainWindow(QMainWindow):
         answer = QMessageBox.question(
             self,
             "Remove Microsoft account?",
-            f"Remove {profile.get('name') or 'this account'} from SKYFALL and delete its local encrypted token cache?",
+            f"Remove {profile.get('name') or 'this account'} from SKYFALL and delete its isolated sign-in profile and local token cache?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        azure_profile_id = str(profile.get("azure_profile_id") or "")
+        if azure_profile_id:
+            try:
+                self.azure_profile_manager.store.delete_profile(azure_profile_id)
+            except KeyError:
+                pass
         self.powerplatform_account_store.remove_profile(profile_id)
         self._refresh_powerplatform_profiles()
 
-    def _configure_powerplatform_app(self, *, refresh: bool = True) -> None:
-        current = self.powerplatform_account_store.get_client_id()
-        client_id, accepted = QInputDialog.getText(
-            self,
-            "Configure Microsoft Entra app",
-            "Application (client) ID for your desktop/public client app:",
-            QLineEdit.EchoMode.Normal,
-            current,
-        )
-        if not accepted:
-            return
-        try:
-            self.powerplatform_account_store.set_client_id(client_id)
-        except ValueError as exc:
-            QMessageBox.warning(self, "Invalid application ID", str(exc))
-            return
-        if self.pp_status_label:
-            self.pp_status_label.setText("Microsoft app configured. Add an account to sign in and discover environments.")
-        if self.pp_configure_app_button:
-            self.pp_configure_app_button.setVisible(False)
-        if refresh:
-            self._refresh_powerplatform_profiles()
-
     def _manage_powerplatform_profiles(self) -> None:
-        if not self.powerplatform_account_store.get_client_id():
-            self._configure_powerplatform_app(refresh=False)
-            if not self.powerplatform_account_store.get_client_id():
-                return
         dialog = PowerPlatformProfileCreateDialog(self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._start_microsoft_worker(
-            "powerplatform_login",
+            "powerplatform_azure_login",
             params={"profile_name": dialog.profile_name, "tenant": dialog.tenant},
         )
 
@@ -2031,12 +2049,10 @@ class MainWindow(QMainWindow):
                             "Default Azure CLI is not signed in. To add another account without changing your existing CLI context, "
                             "open Manage profiles and create a named SKYFALL profile."
                         )
-                    elif not selected_profile.get("tenant_hint"):
-                        status_text = "This profile needs a tenant ID/domain. Open Manage profiles and choose Sign in selected."
                     else:
                         status_text = (
                             f"Not signed in to {selected_profile.get('name', 'this profile')}. "
-                            "Open Manage profiles → Sign in selected to launch Microsoft sign-in."
+                            "Open Manage profiles → Sign in selected to launch Microsoft sign-in and detect its home tenant."
                         )
                     self.azure_status_label.setText(status_text)
             if self.azure_tenant_label:
@@ -2229,14 +2245,14 @@ class MainWindow(QMainWindow):
                     self._auth_refresh_queue.clear()
                     self._auth_refresh_attempts = 0
             if self.pp_status_label:
-                if not auth.get("client_id_configured"):
-                    self.pp_status_label.setText("Complete the one-time app registration setup, then add a profile to sign in.")
-                elif active:
+                if active and auth.get("authenticated"):
                     self.pp_status_label.setText(
                         f"Selected account: {active.get('name') or 'Microsoft account'} ? "
                         f"{active.get('username') or 'identity unavailable'} ? "
                         f"{auth.get('profile_count', 0)} saved profile(s)"
                     )
+                elif active:
+                    self.pp_status_label.setText("This profile is signed out. Add a profile to open Microsoft sign-in again.")
                 else:
                     self.pp_status_label.setText("No account selected. Add a profile to sign in and discover environments.")
             if self.pp_profile_combo:
@@ -2259,12 +2275,13 @@ class MainWindow(QMainWindow):
                 self.pp_profiles_table.setRowCount(len(rows))
                 for row_index, item in enumerate(rows):
                     values = [
-                        "OAuth / MSAL", "Yes" if item.get("active") else "", item.get("tenant_id", ""),
+                        "Azure CLI / browser" if item.get("azure_profile_id") else "OAuth / MSAL",
+                        "Yes" if item.get("active") else "", item.get("tenant_id", ""),
                         item.get("name", ""), item.get("selected_environment_id", ""), item.get("username", ""),
                     ]
                     for column, value in enumerate(values):
                         self.pp_profiles_table.setItem(row_index, column, QTableWidgetItem(str(value)))
-            if action in {"powerplatform_environments", "powerplatform_profiles", "powerplatform_login", "powerplatform_select"} and self.pp_environments_table:
+            if action in {"powerplatform_environments", "powerplatform_profiles", "powerplatform_login", "powerplatform_azure_login", "powerplatform_select"} and self.pp_environments_table:
                 env_result = data.get("environments", {})
                 rows = env_result.get("environments", []) if env_result.get("success") else []
                 self.pp_environments_table.setRowCount(len(rows))
@@ -2284,7 +2301,8 @@ class MainWindow(QMainWindow):
                     self.pp_resource_environment_combo.clear()
                     for item in rows:
                         environment_id = str(item.get("environment_id") or "").strip()
-                        if not environment_id:
+                        environment_url = str(item.get("environment_url") or "").rstrip("/")
+                        if not environment_id or not environment_url:
                             continue
                         environment_name = str(item.get("name") or environment_id)
                         environment_type = str(item.get("type") or "Environment")
@@ -2293,7 +2311,7 @@ class MainWindow(QMainWindow):
                             {
                                 "environment_id": environment_id,
                                 "name": environment_name,
-                                "environment_url": str(item.get("environment_url") or ""),
+                                "environment_url": environment_url,
                             },
                         )
                     self.pp_resource_environment_combo.setCurrentIndex(-1)
@@ -2307,12 +2325,17 @@ class MainWindow(QMainWindow):
                     self._pp_environment_profile_id = active.get("profile_id")
                 if env_result.get("success"):
                     summary = f"Environments discovered: {len(rows)} through the Power Platform API"
+                    flow_environment_count = sum(1 for item in rows if item.get("environment_url"))
                     if self.pp_status_label:
                         self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {summary}")
                     if self.pp_flow_metric_values.get("environment"):
-                        self.pp_flow_metric_values["environment"].setText(f"{len(rows)} available")
-                    if self.pp_flow_status_label and rows:
+                        self.pp_flow_metric_values["environment"].setText(f"{flow_environment_count} Dataverse-ready")
+                    if self.pp_flow_status_label and flow_environment_count:
                         self.pp_flow_status_label.setText("Environments are ready. Your last selection is restored automatically.")
+                    elif self.pp_flow_status_label and rows:
+                        self.pp_flow_status_label.setText(
+                            f"Found {len(rows)} accessible environments, but none has a Dataverse URL for flow inventory."
+                        )
                     elif not rows and self.pp_flow_empty_state:
                         self.pp_flow_empty_title.setText("No environments were returned")
                         self.pp_flow_empty_message.setText("This account did not return any environments. Check the account and its Power Platform access.")
@@ -2323,7 +2346,7 @@ class MainWindow(QMainWindow):
                     friendly_error = env_result.get("error", "Environment discovery could not be completed.")
                     if self.pp_status_label:
                         self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {friendly_error}")
-                    guidance = friendly_error if auth.get("authenticated") else "Complete the app registration setup, add a profile, and sign in to discover environments."
+                    guidance = friendly_error if auth.get("authenticated") else "Add a profile and sign in through Microsoft to discover environments."
                     if self.pp_flow_status_label:
                         self.pp_flow_status_label.setText(guidance)
                     if self.pp_flow_empty_state:
@@ -2394,7 +2417,7 @@ class MainWindow(QMainWindow):
         page_layout.setContentsMargins(0, 0, 0, 0)
         page_layout.setSpacing(0)
 
-        scroll = QScrollArea()
+        scroll = SmoothScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -2748,7 +2771,7 @@ class MainWindow(QMainWindow):
             "SKYFALL stores its conversation index and visible chat history locally. "
             "This release enables read-only MCP Core and metadata-only workspace discovery. "
             "Azure and Power Platform account/environment discovery are available in read-only mode. "
-            "Power Platform uses SKYFALL-local Microsoft OAuth profiles and the Dataverse Web API. Azure Function App and Power Automate inventories are read-only and can generate local Excel reports. Cloud changes and script execution are disabled in v0.9.2."
+            "Power Platform reuses isolated Azure CLI sign-in profiles for environment discovery and the Dataverse Web API. Azure Function App and Power Automate inventories are read-only and can generate local Excel reports. Cloud changes and script execution are disabled in v0.9.2."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
@@ -3183,6 +3206,8 @@ class MainWindow(QMainWindow):
             return
 
         self.current_conversation = conversation
+        if getattr(self, "chat_page_title", None) is not None:
+            self.chat_page_title.setText(conversation.title or "New conversation")
         self.conversation_store.set_active_conversation(conversation.id)
         self._pending_conversation_id = None
         self._refresh_conversation_list(select_id=conversation.id)
@@ -3224,6 +3249,16 @@ class MainWindow(QMainWindow):
         self.history_list.blockSignals(False)
         if self.delete_chat_button is not None:
             self.delete_chat_button.setEnabled(self.history_list.count() > 0)
+        if self.history_search_input is not None:
+            self._filter_conversation_list(self.history_search_input.text())
+
+    def _filter_conversation_list(self, query: str) -> None:
+        if self.history_list is None:
+            return
+        needle = query.strip().casefold()
+        for index in range(self.history_list.count()):
+            item = self.history_list.item(index)
+            item.setHidden(bool(needle) and needle not in item.text().casefold())
 
     def _restore_history_selection(self) -> None:
         self._refresh_conversation_list(select_id=self.current_conversation.id)

@@ -145,9 +145,9 @@ def list_powerplatform_environments() -> str:
     return _list_powerplatform_environments()
 
 
-@mcp.tool(title="Configure Power Platform app")
+@mcp.tool(title="Configure legacy Power Platform OAuth app")
 def configure_powerplatform_app(client_id: str) -> str:
-    """Save the public client ID of a registered Microsoft Entra desktop app. Never provide a client secret."""
+    """Configure the legacy MSAL profile path. New Power Platform profiles use the isolated Azure CLI login."""
     return _configure_powerplatform_app(client_id)
 
 
@@ -160,9 +160,9 @@ def start_azure_login(profile_name: str = "", tenant_id: str = "", profile_id: s
 @mcp.tool(title="Connect a Power Platform account")
 def start_powerplatform_login(
     profile_name: str,
-    tenant: str = "organizations",
+    tenant: str = "",
 ) -> str:
-    """Start browser sign-in and save a per-SKYFALL Microsoft OAuth account profile."""
+    """Start isolated Azure browser sign-in and list accessible Power Platform environments."""
     return _start_powerplatform_login(profile_name, tenant)
 
 

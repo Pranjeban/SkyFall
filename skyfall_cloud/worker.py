@@ -26,10 +26,20 @@ class MicrosoftDiscoveryWorker(QThread):
         rows = store.list_profiles()
         active_id = store.get_active_profile_id()
         active = store.get_profile(active_id)
+        if active and active.get("azure_profile_id"):
+            azure_status = AzureProfileManager().get_auth_status(str(active["azure_profile_id"]))
+            authenticated = bool(azure_status.get("authenticated"))
+            active = {
+                **active,
+                "username": active.get("username") or azure_status.get("user") or "",
+                "tenant_id": active.get("tenant_id") or azure_status.get("tenant_id") or "",
+            }
+        else:
+            authenticated = active is not None
         return {
             "profiles": {"success": True, "count": len(rows), "profiles": [{**item, "active": item.get("profile_id") == active_id} for item in rows]},
-            "auth": {"authenticated": active is not None, "active_profile": active, "profile_count": len(rows), "client_id_configured": bool(store.get_client_id())},
-            "environments": discovery.list_environments() if active else {"success": False, "error": "Add or select a Microsoft account profile.", "environments": []},
+            "auth": {"authenticated": authenticated, "active_profile": active, "profile_count": len(rows)},
+            "environments": discovery.list_environments() if active and authenticated else {"success": False, "error": "Add a profile and sign in to discover environments.", "environments": []},
         }
 
     def run(self) -> None:
@@ -89,6 +99,26 @@ class MicrosoftDiscoveryWorker(QThread):
                 )
                 if not result.get("success"):
                     raise RuntimeError(result.get("error") or "Power Platform sign-in did not complete.")
+                payload = self._powerplatform_snapshot(discovery)
+            elif self.action == "powerplatform_azure_login":
+                manager = AzureProfileManager()
+                profile = manager.store.create_profile(
+                    str(self.params.get("profile_name", "")),
+                    str(self.params.get("tenant", "")),
+                    allow_tenant_discovery=True,
+                )
+                login = manager.login_profile(profile["profile_id"])
+                if not login.get("success"):
+                    manager.store.delete_profile(profile["profile_id"])
+                    raise RuntimeError(login.get("error") or "Microsoft sign-in did not complete.")
+                identity = login.get("auth") or {}
+                discovery = PowerPlatformApi()
+                discovery.attach_azure_profile(
+                    profile["profile_id"],
+                    name=profile["name"],
+                    username=str(identity.get("user") or ""),
+                    tenant_id=str(identity.get("tenant_id") or ""),
+                )
                 payload = self._powerplatform_snapshot(discovery)
             elif self.action == "powerplatform_select":
                 discovery = PowerPlatformApi()

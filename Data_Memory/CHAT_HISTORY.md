@@ -94,3 +94,18 @@ User rejected the interim light palette after sharing a SKYFALL screenshot showi
 ## 2026-11-17 ? Power Platform sign-in aligned with Azure
 
 User requested the same profile-first Microsoft sign-in flow for Power Platform as Azure, followed by a list of accessible environments. Updated Power Platform to use a single profile form (name and optional tenant), Microsoft browser sign-in, automatic environment discovery, a refresh button, and the saved environment dropdown. Kept the required one-time Entra app registration for direct Power Platform API OAuth; no PAC CLI dependency is introduced. Added notes to the v0.9.2 change log and collaboration memory. Live sign-in/environment verification is still needed.
+
+
+## 2026-11-17 ? Remove Power Platform client ID prompt
+
+User shared a screenshot where Add profile still opened the Microsoft Entra client ID prompt and clarified they will not paste a client ID. The desktop flow now creates an isolated SKYFALL Azure profile and immediately launches the same browser sign-in as Azure, with profile name and optional tenant only. On sign-in success it fetches Power Platform environments through Azure CLI's short-lived Power Apps API token, shows them in the account list, and adds Dataverse-enabled ones to the flow inventory selector. Refresh environments and saved per-account environment selection remain. Confirmed removal deletes the linked isolated profile/cache. The version log now describes this flow; earlier memory about needing a user-provided app ID describes the superseded MSAL UI.
+
+
+## 2026-11-17 ? Kiro-style UI request
+
+The user supplied a Kiro Crew screenshot and asked for the SKYFALL UI to match its rounded edges, palette, overall layout, and scroll effect. Implementation updates the desktop frame, sidebar/session rail, chat composer, active chat heading, search, and smooth scroll. It remains a v0.9.2 update until verified and the broader v1.0 gates are complete.
+
+
+## 2026-11-17 ? Design.md visual system
+
+Applied the supplied visual language brief: minimal near-black charcoal surfaces, closely spaced light levels, subdued contrast, sparse violet accents, soft panel reflections, consistent rounded corners, restrained scrollbars and calmer motion. Harmonized the floating assistant and status bar.
