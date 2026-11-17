@@ -57,3 +57,9 @@ For future SKYFALL work:
 The screenshot `Images/conversation-ghost-after-delete.png` shows empty rows labeled “New conversation” after deleting chat history. The user also referenced `C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\issue.txt`; that file is empty (0 bytes), so the screenshot and the user's description provided the issue details.
 
 Fix: `ConversationStore.list_conversations()` now returns only conversations with at least one stored message. Empty drafts still exist as the active working chat, but do not appear in the history list. This also hides previously accumulated blank rows. Added `test_empty_drafts_do_not_appear_in_conversation_history`, which confirms empty drafts stay hidden and a draft appears after its first user message. `python -m unittest tests.unit.test_conversation_store` passed (8 tests).
+
+## MCP stdio smoke-test startup failure (2026-11-17)
+
+User ran `scripts/test_mcp_server.py` from `C:\Users\pkara\Documents\Skyfall\SkyFall`; MCP client negotiation failed with `mcp.shared.exceptions.MCPError: Connection closed` before tools were listed. This traceback identifies that the stdio child closed before initialization, but the original harness did not show its startup/import error.
+
+The test script also still had v0.9.1 expectations: 19 tools, no `configure_powerplatform_app`, and PAC CLI confirmation behavior. Updated it to v0.9.2 (20 tools), verify the new app-ID setup and OAuth prerequisite, and run a child-interpreter import preflight that captures stdout/stderr and reports import errors before protocol negotiation. Failure output is now concise. Script syntax compilation and `git diff --check` pass. The end-to-end MCP test still needs to be rerun in the user's configured Python 3.11 environment; this workspace's available venv points to a Python installation unavailable here.

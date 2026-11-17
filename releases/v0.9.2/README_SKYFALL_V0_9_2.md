@@ -34,3 +34,7 @@ The changed Python modules were syntax-compiled and the patch was checked for wh
 ## Conversation history cleanup
 
 Empty draft conversations are omitted from the sidebar history until the user sends the first message. This prevents blank “New conversation” rows from accumulating after deletion while preserving the active draft.
+
+## MCP stdio smoke-test updates
+
+The smoke test now matches v0.9.2's tool set and direct OAuth setup. It performs an isolated child-process import preflight and reports import errors before MCP handshake, then formats connection/task-group failures more clearly. Run the test in the configured Python environment to complete end-to-end verification.

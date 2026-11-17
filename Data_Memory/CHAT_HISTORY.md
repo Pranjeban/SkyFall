@@ -60,3 +60,7 @@ The supplied `issue.txt` exists but is empty (0 bytes). The screenshot shows bla
 ## Assistant work and response for this issue
 
 Updated `ConversationStore.list_conversations()` so empty drafts are not returned to the history sidebar. Empty drafts remain active and usable; when a user sends the first message, that conversation appears under its actual title. Added a unit regression test. `python -m unittest tests.unit.test_conversation_store` passed all 8 tests. Screenshot copied into `Images/conversation-ghost-after-delete.png`.
+
+## MCP smoke test failure report (2026-11-17)
+
+The user reported `Connection closed` during MCP client negotiation before tool discovery. We found the smoke-test expectations were still v0.9.1, so those were updated to v0.9.2 (20 tools, including `configure_powerplatform_app`, no PAC confirmation). Added an isolated child import preflight that exposes the server's actual import traceback and concise error reporting. The reported stack trace alone does not reveal why the child closed. The updated test must be rerun in the user's Python 3.11 environment for the preflight or protocol diagnostic to establish the remaining cause.

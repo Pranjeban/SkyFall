@@ -82,3 +82,11 @@ These URLs were supplied by the user, but their underlying messages were not ava
 > this is a image issue here is after deleteing the chat in remove the chat are staaying there as new conversation which is bad "C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\issue.txt" also resolve this issue in the issue.txt
 
 The user attached a screenshot showing blank “New conversation” rows after deleting chat history. The referenced `issue.txt` is empty (0 bytes). Fixed by hiding conversations with zero stored messages from history. The active blank draft remains available and becomes visible automatically after the first message. Added a regression test; all 8 conversation store tests passed.
+
+### 11. MCP smoke test connection closed (2026-11-17)
+
+> [User pasted the `scripts/test_mcp_server.py` output showing `MCPError: Connection closed` during MCP protocol discovery/initialize in `mcp.client.stdio`, before any tool listing. The trace paths were under `C:\Users\pkara\Documents\Skyfall\SkyFall` and Python 3.11 venv.]
+>
+> what is the issue rectify whhat is the isue please rectify this
+
+Updated the smoke test from v0.9.1 to v0.9.2: added `configure_powerplatform_app`, expected 20 enabled tools, validated invalid app ID handling, and replaced PAC confirmation assertions with the OAuth app-client-ID prerequisite. Added a child import preflight using the same interpreter/environment to print startup exceptions and simplified exception-group failures. Syntax compilation and `git diff --check` pass. Full stdio test could not be run in this workspace; rerun in the configured Python 3.11 environment to see whether the child import or protocol handshake is still failing.

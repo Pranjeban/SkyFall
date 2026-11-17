@@ -1,4 +1,4 @@
-"""End-to-end stdio smoke test for SKYFALL v0.9.1.
+"""End-to-end stdio smoke test for SKYFALL v0.9.2.
 
 Uses an isolated temporary workspace database and sample script. It does not
 read or modify the user's configured workspaces, call cloud services, or run
@@ -10,9 +10,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import subprocess
 import sys
 import tempfile
-import traceback
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +37,7 @@ EXPECTED_TOOL_NAMES = {
     "list_azure_subscriptions",
     "list_azure_tenants",
     "list_powerplatform_auth_profiles",
+    "configure_powerplatform_app",
     "get_powerplatform_auth_status",
     "list_powerplatform_environments",
     "start_azure_login",
@@ -138,10 +139,37 @@ def get_tool_input_schema(tool: Any) -> dict[str, Any]:
 
 
 async def run_server_test(local_app_data: Path) -> int:
+    environment = child_environment(local_app_data)
+    print("Checking MCP server imports in the child interpreter...", flush=True)
+    try:
+        preflight = subprocess.run(
+            [sys.executable, "-c", "import skyfall_mcp.server; print('MCP server import: OK')"],
+            cwd=str(ROOT),
+            env=environment,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(
+            f"Could not start the MCP child interpreter ({sys.executable}): "
+            f"{type(exc).__name__}: {exc}"
+        ) from exc
+    if preflight.returncode != 0:
+        detail = (preflight.stderr or preflight.stdout or "No child-process diagnostic was returned.").strip()
+        raise RuntimeError(
+            "The MCP child failed while importing skyfall_mcp.server. "
+            "This is usually a missing dependency or an invalid project environment. "
+            f"Interpreter: {sys.executable}\n{detail[-6000:]}"
+        )
+    if preflight.stdout.strip():
+        print(preflight.stdout.strip(), flush=True)
+
     server = StdioServerParameters(
         command=sys.executable,
         args=["-m", "skyfall_mcp.server"],
-        env=child_environment(local_app_data),
+        env=environment,
         cwd=str(ROOT),
     )
 
@@ -189,9 +217,9 @@ async def run_server_test(local_app_data: Path) -> int:
         status_payload = json_payload(status, "get_skyfall_status")
         if status_payload.get("application") != "SKYFALL":
             raise RuntimeError("Status tool returned an unexpected application name.")
-        if status_payload.get("enabled_tools") != 19:
+        if status_payload.get("enabled_tools") != 20:
             raise RuntimeError(
-                "Status tool did not report nineteen enabled tools; "
+                "Status tool did not report twenty enabled tools; "
                 f"got {status_payload.get('enabled_tools')!r}."
             )
 
@@ -318,6 +346,13 @@ async def run_server_test(local_app_data: Path) -> int:
         await invoke_tool(client, "get_powerplatform_auth_status", {})
         await invoke_tool(client, "list_powerplatform_environments", {})
 
+        invalid_app_id = await invoke_tool(
+            client, "configure_powerplatform_app", {"client_id": "not-a-guid"}
+        )
+        invalid_app_id_payload = json_payload(invalid_app_id, "configure_powerplatform_app")
+        if invalid_app_id_payload.get("success") is not False:
+            raise RuntimeError("Invalid Power Platform app client ID was accepted.")
+
         # Missing tenant is collected conversationally by the assistant before
         # it calls the login tool with complete input.
         missing_azure_inputs = await invoke_tool(
@@ -331,30 +366,28 @@ async def run_server_test(local_app_data: Path) -> int:
                 "Azure login tool did not request missing tenant input."
             )
 
-        # A PAC CLI login can change the active profile globally. The tool must
-        # demand explicit confirmation and must not start login before it.
-        pp_confirmation = await invoke_tool(
+        # Direct OAuth sign-in requires a configured public app client ID.
+        pp_login = await invoke_tool(
             client,
             "start_powerplatform_login",
             {"profile_name": "SKYFALL Smoke Test"},
         )
-        pp_confirmation_payload = json_payload(
-            pp_confirmation, "start_powerplatform_login"
+        pp_login_payload = json_payload(
+            pp_login, "start_powerplatform_login"
         )
-        if pp_confirmation_payload.get("requires_confirmation") is not True:
+        if "client_id" not in pp_login_payload.get("requires_input", []):
             raise RuntimeError(
-                "Power Platform login did not require confirmation for PAC CLI "
-                "global-profile side effects."
+                "Power Platform sign-in did not request app registration setup."
             )
-        if pp_confirmation_payload.get("login_started") is True:
+        if pp_login_payload.get("login_started") is True:
             raise RuntimeError(
-                "Power Platform login started before explicit confirmation."
+                "Power Platform sign-in started without an app client ID."
             )
 
         # profile_name is required in the MCP schema. This is intentional:
         # Copilot should collect the profile name from the user before it calls
         # the tool. We therefore do not invoke this tool with empty arguments.
-        # The valid-name call above verifies that the confirmation guard works.
+        # The valid-name call above verifies the client-ID prerequisite.
 
         job_lookup = await invoke_tool(
             client,
@@ -367,7 +400,7 @@ async def run_server_test(local_app_data: Path) -> int:
         print("Power Platform profile/environment discovery tools: PASS")
         print("Microsoft account discovery tools: PASS (isolated test mode)")
         print("Required profile-name schema and sign-in job status: PASS")
-        print("Power Platform global-profile confirmation guard: PASS")
+        print("Power Platform app client-ID prerequisite: PASS")
 
         azure_inventory_tool = next(tool for tool in discovered.tools if tool.name == "inventory_azure_function_apps")
         azure_inventory_result = await invoke_tool(
@@ -406,7 +439,7 @@ async def run_server_test(local_app_data: Path) -> int:
         print("Source file contents: NOT RETURNED BY WORKSPACE TOOLS")
         print("Script execution: NOT ENABLED")
         print(
-            "RESULT: PASS - SKYFALL v0.9.1 MCP server works over stdio.",
+            "RESULT: PASS - SKYFALL v0.9.2 MCP server works over stdio.",
             flush=True,
         )
         return 0
@@ -446,13 +479,28 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("Test cancelled by user.", file=sys.stderr)
         raise SystemExit(130)
+    except RuntimeError as exc:
+        print(f"RESULT: FAIL - {exc}", file=sys.stderr, flush=True)
+        raise SystemExit(1) from exc
     except BaseExceptionGroup as exc:
+        def leaf_messages(group: BaseExceptionGroup) -> list[str]:
+            messages: list[str] = []
+            for item in group.exceptions:
+                if isinstance(item, BaseExceptionGroup):
+                    messages.extend(leaf_messages(item))
+                else:
+                    messages.append(f"{type(item).__name__}: {item}")
+            return messages
+
+        print("RESULT: FAIL - MCP stdio startup/task group failed:", file=sys.stderr)
+        for message in leaf_messages(exc):
+            print(f"  {message}", file=sys.stderr)
         print(
-            "RESULT: FAIL - nested MCP task error follows:",
+            "The child import preflight passed. Check that the server uses the same "
+            "installed MCP SDK as this test and inspect child startup stderr.",
             file=sys.stderr,
             flush=True,
         )
-        traceback.print_exception(exc)
         raise SystemExit(1)
     except Exception as exc:
         print(
