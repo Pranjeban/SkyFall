@@ -30,3 +30,7 @@ This milestone addresses the issues that block moving SKYFALL toward v1: a stabl
 ## Verification limits
 
 The changed Python modules were syntax-compiled and the patch was checked for whitespace errors. The full test suite and desktop visual QA could not be run in the current environment because the project dependencies are unavailable and the checked-in virtual environment points to a missing Python installation. Run the project test suite and inspect the UI on a configured Windows development machine before packaging.
+
+## Conversation history cleanup
+
+Empty draft conversations are omitted from the sidebar history until the user sends the first message. This prevents blank “New conversation” rows from accumulating after deletion while preserving the active draft.

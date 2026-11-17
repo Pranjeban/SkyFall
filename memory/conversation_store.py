@@ -189,6 +189,7 @@ class ConversationStore:
                 FROM conversations c
                 LEFT JOIN messages m ON m.conversation_id = c.id
                 GROUP BY c.id
+                HAVING COUNT(m.id) > 0
                 ORDER BY c.updated_at DESC
                 LIMIT ?
                 """,

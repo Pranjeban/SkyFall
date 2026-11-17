@@ -64,6 +64,17 @@ class ConversationStoreTests(unittest.TestCase):
         second = self.store.get_or_create_active_conversation()
         self.assertEqual(first.id, second.id)
 
+    def test_empty_drafts_do_not_appear_in_conversation_history(self) -> None:
+        first = self.store.create_conversation()
+        second = self.store.create_conversation()
+
+        self.assertEqual(self.store.list_conversations(), [])
+
+        self.store.add_message(second.id, "user", "Keep this conversation")
+        visible = self.store.list_conversations()
+        self.assertEqual([item.id for item in visible], [second.id])
+        self.assertNotIn(first.id, [item.id for item in visible])
+
     def test_delete_conversation_removes_local_messages(self) -> None:
         conversation = self.store.create_conversation()
         self.store.add_message(conversation.id, "user", "This will be removed locally")
