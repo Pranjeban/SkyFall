@@ -84,3 +84,8 @@ The user confirmed the MCP test is now working. Treat the startup failure, missi
 ## SKYFALL v1.0 major milestone
 
 The user proposed Intelligent Engineering Orchestration from approved workspace search through report delivery, with account identity and progress shown, and requested a major professional UI redesign using design inspiration. Started Execution Center implementation and created `releases/v1.0/README_SKYFALL_V1_0.md`. Design references reviewed include Dribbble workflow orchestration, Behance automation dashboard, and Microsoft Fluent progress guidance. Version remains 0.9.2 until all v1.0 requirements are implemented and verified.
+
+
+## 2026-11-17 ? Kiro-inspired UI correction
+
+User rejected the interim light palette after sharing a SKYFALL screenshot showing a white chat area and black sidebar block. Asked to inspect Kiro's dark/purple design and produce a beautiful glass-inspired redesign. The UI now uses a unified dark graphite/plum palette with violet actions/focus, layered panels and matching chat, dialogs, dropdowns, tables, and floating assistant styling. Explicit sidebar inner surface styling addresses the black nav block. A version note was added at `releases/v1.0/README_SKYFALL_V1_0.md`. Screenshot-level verification remains open until launched on Windows with PySide6.

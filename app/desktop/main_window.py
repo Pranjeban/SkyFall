@@ -63,16 +63,16 @@ class MarkdownMessageLabel(QLabel):
     """QLabel that renders Copilot Markdown via Qt's Markdown parser."""
 
     MARKDOWN_CSS = r"""
-    body { color: #243441; font-family: 'Segoe UI'; font-size: 13px; }
+    body { color: #E8E1EC; font-family: 'Segoe UI'; font-size: 13px; }
     p { margin: 0 0 7px 0; }
-    h1, h2, h3, h4 { color: #17232E; margin: 8px 0 5px 0; }
-    a { color: #236F89; }
-    code { color: #244B5C; background-color: #EAF1F4; font-family: Consolas; }
-    pre { color: #243441; background-color: #F0F4F6; padding: 8px; font-family: Consolas; }
-    blockquote { color: #526373; background-color: #F0F4F6; }
+    h1, h2, h3, h4 { color: #F4EFF8; margin: 8px 0 5px 0; }
+    a { color: #C69AFF; }
+    code { color: #D8C5E8; background-color: #302A37; font-family: Consolas; }
+    pre { color: #E8E1EC; background-color: #29242F; padding: 8px; font-family: Consolas; }
+    blockquote { color: #B7AFC0; background-color: #29242F; }
     table { border-collapse: collapse; }
-    th, td { border: 1px solid #33445F; padding: 4px 7px; }
-    th { color: #243441; background-color: #EAF1F4; }
+    th, td { border: 1px solid #554A60; padding: 4px 7px; }
+    th { color: #E8E1EC; background-color: #302A37; }
     li { margin-bottom: 3px; }
     """
 
@@ -97,7 +97,7 @@ class FloatingAssistant(QDialog):
         self.setWindowTitle("SKYFALL Assistant")
         self.setMinimumWidth(390)
         self.setMaximumWidth(470)
-        self.setStyleSheet("background:#F3F6F8; color:#1E2934;")
+        self.setStyleSheet("background:#17141D; color:#F0ECF4;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -105,9 +105,9 @@ class FloatingAssistant(QDialog):
 
         header = QHBoxLayout()
         title = QLabel("SKYFALL")
-        title.setStyleSheet("font-size:18px;font-weight:800;letter-spacing:3px;color:#17232E;")
+        title.setStyleSheet("font-size:18px;font-weight:800;letter-spacing:3px;color:#F4EFF8;")
         subtitle = QLabel("PERSONAL ENGINEERING INTELLIGENCE")
-        subtitle.setStyleSheet("font-size:9px;color:#647585;letter-spacing:1px;")
+        subtitle.setStyleSheet("font-size:9px;color:#A69EAD;letter-spacing:1px;")
         brand_col = QVBoxLayout()
         brand_col.addWidget(title)
         brand_col.addWidget(subtitle)
@@ -117,7 +117,7 @@ class FloatingAssistant(QDialog):
         close_button = QPushButton("×")
         close_button.setFixedSize(30, 30)
         close_button.setStyleSheet(
-            "background:#FFFFFF;color:#344655;border:1px solid #D9E1E7;border-radius:8px;font-size:18px;"
+            "background:#211D27;color:#E3DCE9;border:1px solid #554A60;border-radius:8px;font-size:18px;"
         )
         close_button.clicked.connect(self.hide)
         header.addWidget(close_button)
@@ -129,8 +129,8 @@ class FloatingAssistant(QDialog):
         )
         info.setWordWrap(True)
         info.setStyleSheet(
-            "color:#526373;font-size:12px;padding:10px;background:#EAF1F4;"
-            "border:1px solid #D4E1E7;border-radius:9px;"
+            "color:#B7AFC0;font-size:12px;padding:10px;background:#302A37;"
+            "border:1px solid #554A60;border-radius:9px;"
         )
         layout.addWidget(info)
 
@@ -138,13 +138,13 @@ class FloatingAssistant(QDialog):
         self.input = QLineEdit()
         self.input.setPlaceholderText("Ask Skyfall...")
         self.input.setStyleSheet(
-            "background:#FFFFFF;color:#243441;border:1px solid #CFD9E0;border-radius:9px;"
+            "background:#25212B;color:#F0ECF4;border:1px solid #594769;border-radius:9px;"
             "padding:11px;"
         )
         self.input.returnPressed.connect(self._submit)
         send = QPushButton("Send")
         send.setStyleSheet(
-            "background:#236F89;color:#FFFFFF;border:1px solid #236F89;border-radius:9px;"
+            "background:#8751B5;color:#FFFFFF;border:1px solid #A26AD0;border-radius:9px;"
             "padding:10px 14px;font-weight:650;"
         )
         send.clicked.connect(self._submit)
@@ -169,21 +169,21 @@ class ProfileManagerDialog(QDialog):
         self.setMinimumWidth(560)
         self.action = "close"
         self.selected_value = ""
-        self.setStyleSheet("QDialog{background:#F3F6F8;color:#1E2934;}")
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         hint = QLabel("Select an existing profile or create a new one. Sign-in starts only after you explicitly request it.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color:#647585;font-size:12px;")
+        hint.setStyleSheet("color:#A69EAD;font-size:12px;")
         layout.addWidget(hint)
 
         self.items = QListWidget()
         self.items.setStyleSheet(
-            "QListWidget{background:#FFFFFF;color:#243441;border:1px solid #CFD9E0;border-radius:8px;padding:6px;}"
+            "QListWidget{background:#25212B;color:#F0ECF4;border:1px solid #594769;border-radius:8px;padding:6px;}"
             "QListWidget::item{padding:9px;border-radius:5px;}"
-            "QListWidget::item:selected{background:#E1EFF3;color:#1E6177;}"
+            "QListWidget::item:selected{background:#503665;color:#E4CAFF;}"
         )
         for label, value in entries:
             item = QListWidgetItem(label)
@@ -229,14 +229,14 @@ class AzureProfileCreateDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Create Azure profile")
         self.setMinimumWidth(540)
-        self.setStyleSheet("QDialog{background:#F3F6F8;color:#1E2934;}")
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
 
         heading = QLabel("Connect a Microsoft Azure account")
-        heading.setStyleSheet("font-size:17px;font-weight:700;color:#17232E;")
+        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4EFF8;")
         layout.addWidget(heading)
 
         info = QLabel(
@@ -245,7 +245,7 @@ class AzureProfileCreateDialog(QDialog):
             "discovers the signed-in tenant and accessible subscriptions."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color:#647585;font-size:12px;")
+        info.setStyleSheet("color:#A69EAD;font-size:12px;")
         layout.addWidget(info)
 
         form = QFormLayout()
@@ -257,7 +257,7 @@ class AzureProfileCreateDialog(QDialog):
         for field in (self.name_edit, self.tenant_edit):
             field.setMinimumHeight(36)
             field.setStyleSheet(
-                "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
+                "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
                 "border-radius:8px;padding:7px 10px;"
             )
         form.addRow("Profile name", self.name_edit)
@@ -265,7 +265,7 @@ class AzureProfileCreateDialog(QDialog):
         layout.addLayout(form)
 
         self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color:#A13F39;font-size:11px;")
+        self.error_label.setStyleSheet("color:#F09BA7;font-size:11px;")
         self.error_label.setWordWrap(True)
         layout.addWidget(self.error_label)
 
@@ -448,7 +448,7 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("SKYFALL desktop ready · Starting Copilot AI runtime...")
         self.statusBar().setStyleSheet(
-            "background:#FFFFFF;color:#647585;border-top:1px solid #E1E7EC;padding:4px;"
+            "background:#211D27;color:#A69EAD;border-top:1px solid #342D3C;padding:4px;"
         )
 
         self.copilot_worker = CopilotWorker(
@@ -508,6 +508,8 @@ class MainWindow(QMainWindow):
         navigation_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         navigation_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         navigation_content = QWidget()
+        navigation_content.setObjectName("sidebarNavigationContent")
+        navigation_content.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         navigation_layout = QVBoxLayout(navigation_content)
         navigation_layout.setContentsMargins(2, 8, 3, 8)
         navigation_layout.setSpacing(4)
@@ -580,7 +582,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(20)
 
         greeting = QLabel("Your engineering workspace, in one place.")
-        greeting.setStyleSheet("font-size:25px;font-weight:750;color:#17232E;")
+        greeting.setStyleSheet("font-size:25px;font-weight:750;color:#F4EFF8;")
         sub = QLabel(
             "Your personal engineering assistant is online. Plan engineering work, review account context, "
             "and track supervised read-only operations from the Orchestration workspace."
@@ -688,7 +690,7 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         title_col = QVBoxLayout()
         title = QLabel("Talk to SKYFALL")
-        title.setStyleSheet("font-size:23px;font-weight:750;color:#17232E;")
+        title.setStyleSheet("font-size:23px;font-weight:750;color:#F4EFF8;")
         subtitle = QLabel(
             "Your Copilot conversation is private to your signed-in account and this local application. "
             "Operational tools are not enabled yet."
@@ -893,7 +895,7 @@ class MainWindow(QMainWindow):
             "do not add folders containing sensitive data unless policy permits sharing their metadata."
         )
         privacy_note.setWordWrap(True)
-        privacy_note.setStyleSheet("color:#647585;font-size:12px;")
+        privacy_note.setStyleSheet("color:#A69EAD;font-size:12px;")
         privacy_layout.addWidget(privacy_note)
         layout.addWidget(privacy)
 
@@ -1232,7 +1234,7 @@ class MainWindow(QMainWindow):
         self.azure_profile_combo = QComboBox()
         self.azure_profile_combo.setMinimumHeight(36)
         self.azure_profile_combo.setStyleSheet(
-            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
+            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.azure_profile_combo.currentIndexChanged.connect(self._on_azure_profile_changed)
@@ -1396,7 +1398,7 @@ class MainWindow(QMainWindow):
         self.pp_profile_combo = QComboBox()
         self.pp_profile_combo.setMinimumHeight(36)
         self.pp_profile_combo.setStyleSheet(
-            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
+            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.pp_profile_combo.currentIndexChanged.connect(self._on_powerplatform_profile_changed)
@@ -1506,7 +1508,7 @@ class MainWindow(QMainWindow):
             value = QLabel(value_text)
             value.setObjectName("metricValue")
             value.setWordWrap(True)
-            value.setStyleSheet("font-size:18px;font-weight:750;color:#17232E;")
+            value.setStyleSheet("font-size:18px;font-weight:750;color:#F4EFF8;")
             detail = QLabel(detail_text)
             detail.setObjectName("muted")
             detail.setWordWrap(True)
@@ -1536,7 +1538,7 @@ class MainWindow(QMainWindow):
         self.pp_resource_environment_combo.setMinimumHeight(42)
         self.pp_resource_environment_combo.setPlaceholderText("Select a discovered environment")
         self.pp_resource_environment_combo.setStyleSheet(
-            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
+            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
             "border-radius:9px;padding:8px 11px;font-size:13px;"
         )
         self.pp_resource_environment_combo.currentIndexChanged.connect(self._on_powerplatform_environment_changed)
@@ -1688,11 +1690,11 @@ class MainWindow(QMainWindow):
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setStyleSheet(
-            "QTableWidget{background:#FFFFFF;alternate-background-color:#F6F9FA;"
-            "color:#243441;border:1px solid #DDE5EA;gridline-color:#E6ECEF;"
-            "selection-background-color:#DCECF1;}"
-            "QHeaderView::section{background:#F0F4F6;color:#455A69;border:0;"
-            "border-bottom:1px solid #DDE5EA;padding:8px;font-weight:650;}"
+            "QTableWidget{background:#211D27;alternate-background-color:#28242E;"
+            "color:#E8E1EC;border:1px solid #443B4D;gridline-color:#3B3442;"
+            "selection-background-color:#503665;}"
+            "QHeaderView::section{background:#29242F;color:#C8B8D7;border:0;"
+            "border-bottom:1px solid #443B4D;padding:8px;font-weight:650;}"
         )
 
     def _refresh_azure_profile_choices(self) -> None:
@@ -2642,7 +2644,7 @@ class MainWindow(QMainWindow):
         panel_layout.addWidget(self._status_row("Integration status", "Not connected", "offline"))
         for item in items:
             line = QLabel(f"•  {item}")
-            line.setStyleSheet("color:#526373;font-size:13px;padding:5px 0;")
+            line.setStyleSheet("color:#B7AFC0;font-size:13px;padding:5px 0;")
             panel_layout.addWidget(line)
         layout.addWidget(panel)
         layout.addStretch(1)
@@ -2697,7 +2699,7 @@ class MainWindow(QMainWindow):
         lbl.setObjectName("metricLabel")
         val = QLabel(value)
         val.setObjectName("metricValue")
-        val.setStyleSheet("font-size:19px;font-weight:750;color:#17232E;")
+        val.setStyleSheet("font-size:19px;font-weight:750;color:#F4EFF8;")
         self.metric_values[label] = val
         det = QLabel(detail)
         det.setObjectName("muted")
@@ -2716,7 +2718,7 @@ class MainWindow(QMainWindow):
         box.setContentsMargins(14, 15, 14, 14)
         box.setSpacing(10)
         heading = QLabel(title)
-        heading.setStyleSheet("font-size:13px;font-weight:700;color:#243441;")
+        heading.setStyleSheet("font-size:13px;font-weight:700;color:#E8E1EC;")
         body = QLabel(description)
         body.setObjectName("muted")
         body.setWordWrap(True)
@@ -2734,7 +2736,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         name = QLabel(label)
-        name.setStyleSheet("color:#647585;font-size:11px;")
+        name.setStyleSheet("color:#A69EAD;font-size:11px;")
         status = QLabel(value)
         status.setObjectName(
             {"good": "statusGood", "pending": "statusPending", "offline": "statusOffline"}.get(state, "statusOffline")

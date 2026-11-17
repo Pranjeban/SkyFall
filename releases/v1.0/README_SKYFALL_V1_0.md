@@ -49,3 +49,10 @@ The visual direction borrows interaction patterns rather than copying artwork:
 - Exercise account refresh, ambiguous environment matching, expired authentication, denial, cancellation, partial errors, report validation, and recovery.
 - Visually inspect the redesigned app at normal and compact window sizes on Windows.
 - Do not label the application v1.0 until the above gates and the controlled execution path are complete.
+
+
+## Visual direction update (2026-11-17)
+
+The first light slate redesign was rejected by the user as visually poor. The replacement direction uses the supplied Kiro Crew screenshot and Kiro website as references: near-black graphite/plum foundations, muted lavender navigation, violet focus and primary actions, thin low-contrast borders, layered translucent card colors, and restrained mint/amber status colors. Chat, Markdown, floating assistant, account/profile dialogs, tables, and navigation now share that palette. The sidebar navigation surface is explicitly styled to prevent an unthemed black rectangle. This is a Qt glass-inspired layered treatment; it does not promise OS-level backdrop blur.
+
+Visual validation still requires launching the desktop app on a machine with PySide6; the current workspace interpreter cannot render the UI.

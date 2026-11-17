@@ -87,3 +87,8 @@ The user named Intelligent Engineering Orchestration as the next major milestone
 - Design references reviewed: Dribbble AI Workflow Builder, Behance Nexora automation dashboard, Microsoft Fluent progress bar/wait UX. See `releases/v1.0/README_SKYFALL_V1_0.md`.
 - Important scope: this first wired route shows workspace script metadata but does not execute workspace source; it runs SKYFALL's native read-only inventory API. A general script runner is still gated on an actual security boundary. The app remains version 0.9.2 until all v1.0 execution/validation requirements are complete.
 - Verification: `py_compile` and `git diff --check` passed. Visual QA not performed because PySide6 is unavailable in this workspace's active interpreter.
+
+
+## Kiro-inspired visual redesign (2026-11-17)
+
+User feedback: the light v1.0 redesign looked very bad (especially the white chat canvas and black sidebar navigation block). User shared a Kiro Crew screenshot and requested a detailed Kiro-inspired scheme, glass styling, and a more polished overall UI. Replaced the light direction with graphite/plum surfaces, muted lavender navigation, violet accents, layered translucent cards, consistent dark styling for chat/Markdown, dialogs, tables, profile selectors, and floating assistant. Explicitly themed `sidebarNavigationContent` to eliminate the black rectangle. Design reference: https://kiro.dev/ and user-provided screenshot. Status: code updated; launch-and-render visual check still needed on a PySide6-enabled Windows environment.
