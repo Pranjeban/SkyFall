@@ -207,6 +207,31 @@ QListWidget#conversationList::item:selected {
 }
 """
 
+# v0.9.2 visual pass: a quieter slate palette, clearer chat canvas and legible
+# native combo popups (Qt styles the popup independently of the closed control).
+APP_STYLESHEET += r"""
+QMainWindow, QWidget#appRoot, QWidget#contentHost { background: #121821; }
+QFrame#sidebar, QFrame#chatHistoryPanel { background: #171F2A; border-color: #2A3543; }
+QFrame#topBar { background: #121821; border-color: #2A3543; }
+QFrame#panel, QFrame#metricCard, QFrame#quickCard { background: #1B2531; border-color: #303D4D; }
+QFrame#assistantMessage { background: #1C2733; border-color: #354454; }
+QFrame#userMessage { background: #25384B; border-color: #3B5873; }
+QLineEdit#chatInput { background: #1B2531; border-color: #3A4859; }
+QListWidget#conversationList::item:selected { background: #283B50; color: #D7E7F7; border-color: #496782; }
+QPushButton#navButton:checked { background: #283B50; color: #D7E7F7; border-color: #496782; }
+QComboBox {
+    background: #1B2531; color: #E6EBF1; border: 1px solid #3A4859;
+    border-radius: 8px; padding: 7px 10px;
+}
+QComboBox:hover { border-color: #617991; }
+QComboBox QAbstractItemView {
+    background: #202B37; color: #E6EBF1; selection-background-color: #344B61;
+    selection-color: #FFFFFF; border: 1px solid #3A4859; outline: 0;
+}
+QScrollArea#chatScroll { background: #171F2A; border: 1px solid #2D3947; border-radius: 12px; }
+QScrollArea#chatScroll QWidget { background: transparent; }
+"""
+
 
 APP_STYLESHEET += r"""
 QCheckBox {

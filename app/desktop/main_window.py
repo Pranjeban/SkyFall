@@ -66,9 +66,9 @@ class MarkdownMessageLabel(QLabel):
     p { margin: 0 0 7px 0; }
     h1, h2, h3, h4 { color: #F4F7FD; margin: 8px 0 5px 0; }
     a { color: #8BC5FF; }
-    code { color: #B9D9FF; background-color: #1B2A42; font-family: Consolas; }
-    pre { color: #DCE8F8; background-color: #0B1424; padding: 8px; font-family: Consolas; }
-    blockquote { color: #B8C5D8; background-color: #15233A; }
+    code { color: #D0DFEC; background-color: #2A3745; font-family: Consolas; }
+    pre { color: #E3EAF0; background-color: #202B37; padding: 8px; font-family: Consolas; }
+    blockquote { color: #C2CDD8; background-color: #25313D; }
     table { border-collapse: collapse; }
     th, td { border: 1px solid #33445F; padding: 4px 7px; }
     th { color: #F4F7FD; background-color: #1B2A42; }
@@ -421,6 +421,7 @@ class MainWindow(QMainWindow):
         self.chat_scroll: QScrollArea | None = None
         self.history_list: QListWidget | None = None
         self.new_chat_button: QPushButton | None = None
+        self.delete_chat_button: QPushButton | None = None
         self.chat_input: QLineEdit | None = None
         self.chat_send_button: QPushButton | None = None
         self.workspace_list: QListWidget | None = None
@@ -567,11 +568,19 @@ class MainWindow(QMainWindow):
         layout.addLayout(brand_row)
         layout.addSpacing(26)
 
-        section = QLabel("WORKSPACE")
+        section = QLabel("YOUR SESSION")
         section.setObjectName("eyebrow")
         layout.addWidget(section)
 
+        workflow_keys = {"azure", "azure_resources", "power_platform", "power_platform_resources", "executions", "reports"}
+        workflow_heading_added = False
         for label, key in self.NAV_ITEMS:
+            if key in workflow_keys and not workflow_heading_added:
+                layout.addSpacing(14)
+                workflow_heading = QLabel("CLOUD WORKFLOWS")
+                workflow_heading.setObjectName("eyebrow")
+                layout.addWidget(workflow_heading)
+                workflow_heading_added = True
             button = QPushButton(f"   {label}")
             button.setObjectName("navButton")
             button.setCheckable(True)
@@ -705,6 +714,12 @@ class MainWindow(QMainWindow):
         self.new_chat_button.setObjectName("secondaryButton")
         self.new_chat_button.clicked.connect(self._create_new_conversation)
         history_layout.addWidget(self.new_chat_button)
+
+        self.delete_chat_button = QPushButton("Delete selected conversation")
+        self.delete_chat_button.setObjectName("secondaryButton")
+        self.delete_chat_button.setToolTip("Remove this conversation and its local transcript")
+        self.delete_chat_button.clicked.connect(self._delete_selected_conversation)
+        history_layout.addWidget(self.delete_chat_button)
 
         self.history_list = QListWidget()
         self.history_list.setObjectName("conversationList")
@@ -1919,7 +1934,12 @@ class MainWindow(QMainWindow):
             index = int(value)
         except (TypeError, ValueError):
             return
-        if getattr(self, "_pp_active_profile_index", None) is None or index == self._pp_active_profile_index:
+        active_index = getattr(self, "_pp_active_profile_index", None)
+        try:
+            active_index = int(active_index) if active_index is not None else None
+        except (TypeError, ValueError):
+            active_index = None
+        if active_index is None or index == active_index:
             return
         answer = QMessageBox.question(
             self,
@@ -2152,14 +2172,21 @@ class MainWindow(QMainWindow):
             if self.pp_profile_combo:
                 rows_for_combo = profiles.get("profiles", [])
                 active_profile = auth.get("active_profile") or {}
-                active_index = active_profile.get("index")
+                try:
+                    active_index = int(active_profile.get("index")) if active_profile.get("index") is not None else None
+                except (TypeError, ValueError):
+                    active_index = None
                 self.pp_profile_combo.blockSignals(True)
                 self.pp_profile_combo.clear()
                 for profile in rows_for_combo:
                     prefix = "● " if profile.get("active") else ""
                     label = profile.get("label") or profile.get("environment_url") or f"PAC profile {profile.get('index')}"
                     user = profile.get("user") or "unknown user"
-                    self.pp_profile_combo.addItem(f"{prefix}{label} · {user}", profile.get("index"))
+                    try:
+                        profile_index = int(profile.get("index"))
+                    except (TypeError, ValueError):
+                        continue
+                    self.pp_profile_combo.addItem(f"{prefix}{label} · {user}", profile_index)
                 if active_index is not None:
                     active_combo_index = self.pp_profile_combo.findData(active_index)
                     if active_combo_index >= 0:
@@ -2673,6 +2700,48 @@ class MainWindow(QMainWindow):
         conversation = self.conversation_store.create_conversation()
         self._request_conversation_switch(conversation.id)
 
+    def _delete_selected_conversation(self) -> None:
+        """Delete the selected local transcript and continue in a fresh chat."""
+        if self._request_active or (self.copilot_worker and self.copilot_worker.is_busy):
+            QMessageBox.information(
+                self, "Conversation in progress",
+                "Wait for the current response to finish before deleting a conversation.",
+            )
+            return
+        current = self.history_list.currentItem() if self.history_list else None
+        conversation_id = str(current.data(Qt.ItemDataRole.UserRole)) if current else self.current_conversation.id
+        conversation = self.conversation_store.get_conversation(conversation_id)
+        if conversation is None:
+            return
+        answer = QMessageBox.question(
+            self,
+            "Delete conversation?",
+            f"Delete “{conversation.title}” and its locally stored messages? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        was_current = conversation_id == self.current_conversation.id
+        self.conversation_store.delete_conversation(conversation_id)
+        if was_current:
+            replacement = self.conversation_store.create_conversation()
+            self.current_conversation = replacement
+            self._pending_conversation_id = replacement.id
+            self._refresh_conversation_list(select_id=replacement.id)
+            self._render_conversation(replacement.id)
+            if self.copilot_worker and self.copilot_worker.is_connected:
+                accepted = self.copilot_worker.switch_conversation(
+                    replacement.copilot_session_id, resume=False
+                )
+                if not accepted:
+                    self._pending_conversation_id = None
+            else:
+                self.conversation_store.set_active_conversation(replacement.id)
+        else:
+            self._refresh_conversation_list(select_id=self.current_conversation.id)
+
+
     def _on_history_selection_changed(
         self,
         current: QListWidgetItem | None,
@@ -2758,6 +2827,8 @@ class MainWindow(QMainWindow):
         if selected_item is not None:
             self.history_list.setCurrentItem(selected_item)
         self.history_list.blockSignals(False)
+        if self.delete_chat_button is not None:
+            self.delete_chat_button.setEnabled(self.history_list.count() > 0)
 
     def _restore_history_selection(self) -> None:
         self._refresh_conversation_list(select_id=self.current_conversation.id)
