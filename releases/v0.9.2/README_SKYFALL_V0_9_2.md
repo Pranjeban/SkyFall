@@ -38,3 +38,7 @@ Empty draft conversations are omitted from the sidebar history until the user se
 ## MCP stdio smoke-test updates
 
 The smoke test now matches v0.9.2's tool set and direct OAuth setup. It performs an isolated child-process import preflight and reports import errors before MCP handshake, then formats connection/task-group failures more clearly. Run the test in the configured Python environment to complete end-to-end verification.
+
+## MCP Azure login import repair
+
+Restored the Azure MCP account-login tool that the server imports: new named isolated Azure profile login and existing-profile sign-in run as an authentication job. Test mode blocks external login. Regression coverage added for missing inputs and the test-mode guard.

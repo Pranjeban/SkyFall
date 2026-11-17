@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from skyfall_cloud.azure_profiles import AzureProfileManager
@@ -44,6 +45,78 @@ def list_azure_subscriptions(profile_id: str = "all", refresh: bool = False) -> 
 def list_azure_tenants(profile_id: str = "all", refresh: bool = False) -> str:
     """List tenant IDs represented across all registered profiles by default, or one selected profile."""
     return _json(AzureProfileManager().list_tenants(profile_id, refresh=refresh))
+
+
+def start_azure_login(profile_name: str = "", tenant_id: str = "", profile_id: str = "") -> str:
+    """Start Azure CLI browser sign-in in a named SKYFALL-isolated profile."""
+    clean_name = (profile_name or "").strip()
+    clean_tenant = (tenant_id or "").strip()
+    clean_profile_id = (profile_id or "").strip()
+    profile: dict[str, Any] = {}
+
+    if not clean_profile_id and (not clean_name or not clean_tenant):
+        required = []
+        if not clean_name:
+            required.append("profile_name")
+        if not clean_tenant:
+            required.append("tenant_id")
+        return _json({
+            "success": False,
+            "requires_input": required,
+            "message": "Provide a profile name and tenant GUID or domain for a new Azure account.",
+            "login_started": False,
+        })
+
+    if os.environ.get("SKYFALL_TEST_MODE") == "1":
+        return _json({
+            "success": False,
+            "status": "blocked_test_mode",
+            "error": "External Azure sign-in is disabled in SKYFALL_TEST_MODE.",
+            "login_started": False,
+        })
+
+    manager = AzureProfileManager()
+    if clean_profile_id:
+        try:
+            profile = manager.store.get_profile(clean_profile_id)
+            if profile.get("profile_id") == "azure-cli-default":
+                return _json({
+                    "success": False,
+                    "error": "Sign-in through the default Azure CLI profile is disabled to protect its existing context. Create a named SKYFALL profile instead.",
+                    "login_started": False,
+                })
+            if clean_tenant:
+                profile = manager.store.update_tenant_hint(clean_profile_id, clean_tenant)
+        except (KeyError, ValueError) as exc:
+            return _json({"success": False, "error": str(exc), "login_started": False})
+    def sign_in() -> dict[str, Any]:
+        selected_profile_id = clean_profile_id
+        if not selected_profile_id:
+            profile = manager.store.create_profile(clean_name, clean_tenant)
+            selected_profile_id = str(profile["profile_id"])
+        result = manager.login_profile(selected_profile_id)
+        if result.get("success"):
+            profiles = manager.store.list_profiles()
+            result["profiles"] = {
+                "count": len(profiles),
+                "profiles": profiles,
+            }
+        return result
+
+    job = AUTH_JOBS.start(
+        f"Azure sign-in: {clean_name or clean_profile_id}",
+        sign_in,
+    )
+    return _json({
+        "success": True,
+        "login_started": True,
+        **job,
+        "profile_name": clean_name or profile.get("name", ""),
+        "profile_id": clean_profile_id or None,
+        "tenant_id": clean_tenant or profile.get("tenant_hint", ""),
+        "next_step": "Complete the Microsoft browser sign-in. Then call get_microsoft_auth_job_status with the returned job_id to view authentication and subscription discovery results.",
+        "credential_material_returned": False,
+    })
 
 
 def configure_powerplatform_app(client_id: str) -> str:

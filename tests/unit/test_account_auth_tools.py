@@ -25,6 +25,22 @@ class FakePowerPlatformStore:
 
 
 class AccountAuthToolTests(unittest.TestCase):
+    def test_azure_login_requests_missing_profile_and_tenant(self):
+        result = json.loads(accounts.start_azure_login())
+        self.assertEqual(result["requires_input"], ["profile_name", "tenant_id"])
+        self.assertFalse(result["login_started"])
+
+    def test_azure_login_requires_tenant_when_profile_name_is_provided(self):
+        result = json.loads(accounts.start_azure_login(profile_name="Engineering"))
+        self.assertEqual(result["requires_input"], ["tenant_id"])
+        self.assertFalse(result["login_started"])
+
+    def test_azure_login_is_blocked_in_test_mode(self):
+        with patch.dict("os.environ", {"SKYFALL_TEST_MODE": "1"}):
+            result = json.loads(accounts.start_azure_login("Engineering", "contoso.com"))
+        self.assertEqual(result["status"], "blocked_test_mode")
+        self.assertFalse(result["login_started"])
+
     def test_powerplatform_login_requires_client_app_setup(self):
         jobs = FakeJobs()
         store = FakePowerPlatformStore()

@@ -90,3 +90,19 @@ The user attached a screenshot showing blank “New conversation” rows after d
 > what is the issue rectify whhat is the isue please rectify this
 
 Updated the smoke test from v0.9.1 to v0.9.2: added `configure_powerplatform_app`, expected 20 enabled tools, validated invalid app ID handling, and replaced PAC confirmation assertions with the OAuth app-client-ID prerequisite. Added a child import preflight using the same interpreter/environment to print startup exceptions and simplified exception-group failures. Syntax compilation and `git diff --check` pass. Full stdio test could not be run in this workspace; rerun in the configured Python 3.11 environment to see whether the child import or protocol handshake is still failing.
+
+## Exact MCP import error and fix (2026-11-17)
+
+### User's diagnostic output
+
+> Checking MCP server imports in the child interpreter...
+> RESULT: FAIL - The MCP child failed while importing skyfall_mcp.server.
+> ImportError: cannot import name 'start_azure_login' from 'skyfall_mcp.tools.accounts' (C:\Users\pkara\Documents\Skyfall\SkyFall\skyfall_mcp\tools\accounts.py)
+
+### User request
+
+> rectify this
+
+### Fix and verification
+
+Restored `start_azure_login` in `skyfall_mcp/tools/accounts.py` for new or existing isolated Azure profiles. It starts browser login as an authentication job, validates inputs, and refuses external sign-in in test mode. Added unit tests for missing inputs and test-mode blocking. Python compilation, static verification that every account function imported by the MCP server exists, and `git diff --check` passed. Full end-to-end test still needs rerunning in the configured Windows Python environment.

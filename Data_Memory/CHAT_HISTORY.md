@@ -64,3 +64,11 @@ Updated `ConversationStore.list_conversations()` so empty drafts are not returne
 ## MCP smoke test failure report (2026-11-17)
 
 The user reported `Connection closed` during MCP client negotiation before tool discovery. We found the smoke-test expectations were still v0.9.1, so those were updated to v0.9.2 (20 tools, including `configure_powerplatform_app`, no PAC confirmation). Added an isolated child import preflight that exposes the server's actual import traceback and concise error reporting. The reported stack trace alone does not reveal why the child closed. The updated test must be rerun in the user's Python 3.11 environment for the preflight or protocol diagnostic to establish the remaining cause.
+
+## Exact cause found and fixed (2026-11-17)
+
+The user reran the preflight and provided:
+
+`ImportError: cannot import name 'start_azure_login' from 'skyfall_mcp.tools.accounts'`
+
+`skyfall_mcp.server` imports/registers this Azure login capability, but the rewritten `skyfall_mcp.tools.accounts` module had accidentally omitted the function. Restored it using `AzureProfileManager`, `AUTH_JOBS`, isolated profile creation/login, and a test-mode guard. Added unit checks for required inputs and blocked external sign-in in test mode. Python compilation, static import-name verification, and `git diff --check` pass; rerun the MCP smoke test in the configured environment.
