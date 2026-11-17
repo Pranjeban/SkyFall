@@ -32,3 +32,9 @@ This note captures the user's stated product direction so future SKYFALL work ca
 ## Follow-up
 
 The user linked a ChatGPT conversation for fuller context, but its contents were not accessible in the current session. Add details from that conversation here if the user supplies an export or transcript.
+
+## v1.0 orchestration direction (2026-11-17)
+
+User introduced Intelligent Engineering Orchestration as the next major milestone. Core flow: approved-workspace search; exact script identification; parameter/dependency inspection; explicit environment resolution; identity/auth validation; concrete plan; user approval; controlled execution; result validation; report delivery. They want a persistent progress bar with credential identity context, and a major professional UI update inspired by Dribbble/Behance.
+
+v1.0 preview UI work is in progress: task-first Execution Center, ten labeled stages, monotonic plan progress + indeterminate run progress, safe account/tenant/environment display, and explicit confirmation for the built-in read-only Dataverse inventory route. This route does not execute workspace source. General script execution remains gated on a real security boundary; do not mark v1.0 released until that runner and all ten steps are implemented and tested. A light stone/slate/blue-teal theme is being applied based on automation dashboard layouts and Fluent progress guidance.

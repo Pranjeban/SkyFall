@@ -76,3 +76,11 @@ The user reran the preflight and provided:
 ## Two stale test assertions corrected (2026-11-17)
 
 The user reported 2 failures in a 77-test run. Changed expected total enabled tools from 19 to 20, expected Power Platform discovery tools from 3 to 4, and escaped parentheses in the app-ID validation regex. Reruns: `test_core_mcp_tools` 4/4 passed; `test_powerplatform_accounts` 5/5 passed (with an import-only httpx stub in this workspace because its real dependency is not installed; API calls are mocked). Diff check passed.
+
+## Resolution confirmation (2026-11-17)
+
+The user confirmed the MCP test is now working. Treat the startup failure, missing `start_azure_login` import, and stale unit assertions as resolved.
+
+## SKYFALL v1.0 major milestone
+
+The user proposed Intelligent Engineering Orchestration from approved workspace search through report delivery, with account identity and progress shown, and requested a major professional UI redesign using design inspiration. Started Execution Center implementation and created `releases/v1.0/README_SKYFALL_V1_0.md`. Design references reviewed include Dribbble workflow orchestration, Behance automation dashboard, and Microsoft Fluent progress guidance. Version remains 0.9.2 until all v1.0 requirements are implemented and verified.

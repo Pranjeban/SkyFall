@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -62,16 +63,16 @@ class MarkdownMessageLabel(QLabel):
     """QLabel that renders Copilot Markdown via Qt's Markdown parser."""
 
     MARKDOWN_CSS = r"""
-    body { color: #E8ECF5; font-family: 'Segoe UI'; font-size: 13px; }
+    body { color: #243441; font-family: 'Segoe UI'; font-size: 13px; }
     p { margin: 0 0 7px 0; }
-    h1, h2, h3, h4 { color: #F4F7FD; margin: 8px 0 5px 0; }
-    a { color: #8BC5FF; }
-    code { color: #D0DFEC; background-color: #2A3745; font-family: Consolas; }
-    pre { color: #E3EAF0; background-color: #202B37; padding: 8px; font-family: Consolas; }
-    blockquote { color: #C2CDD8; background-color: #25313D; }
+    h1, h2, h3, h4 { color: #17232E; margin: 8px 0 5px 0; }
+    a { color: #236F89; }
+    code { color: #244B5C; background-color: #EAF1F4; font-family: Consolas; }
+    pre { color: #243441; background-color: #F0F4F6; padding: 8px; font-family: Consolas; }
+    blockquote { color: #526373; background-color: #F0F4F6; }
     table { border-collapse: collapse; }
     th, td { border: 1px solid #33445F; padding: 4px 7px; }
-    th { color: #F4F7FD; background-color: #1B2A42; }
+    th { color: #243441; background-color: #EAF1F4; }
     li { margin-bottom: 3px; }
     """
 
@@ -96,7 +97,7 @@ class FloatingAssistant(QDialog):
         self.setWindowTitle("SKYFALL Assistant")
         self.setMinimumWidth(390)
         self.setMaximumWidth(470)
-        self.setStyleSheet("background:#0E1528; color:#E8ECF5;")
+        self.setStyleSheet("background:#F3F6F8; color:#1E2934;")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
@@ -104,9 +105,9 @@ class FloatingAssistant(QDialog):
 
         header = QHBoxLayout()
         title = QLabel("SKYFALL")
-        title.setStyleSheet("font-size:18px;font-weight:800;letter-spacing:3px;color:#F4F7FD;")
+        title.setStyleSheet("font-size:18px;font-weight:800;letter-spacing:3px;color:#17232E;")
         subtitle = QLabel("PERSONAL ENGINEERING INTELLIGENCE")
-        subtitle.setStyleSheet("font-size:9px;color:#8291AA;letter-spacing:1px;")
+        subtitle.setStyleSheet("font-size:9px;color:#647585;letter-spacing:1px;")
         brand_col = QVBoxLayout()
         brand_col.addWidget(title)
         brand_col.addWidget(subtitle)
@@ -116,7 +117,7 @@ class FloatingAssistant(QDialog):
         close_button = QPushButton("×")
         close_button.setFixedSize(30, 30)
         close_button.setStyleSheet(
-            "background:#17243A;border:1px solid #2D405C;border-radius:8px;font-size:18px;"
+            "background:#FFFFFF;color:#344655;border:1px solid #D9E1E7;border-radius:8px;font-size:18px;"
         )
         close_button.clicked.connect(self.hide)
         header.addWidget(close_button)
@@ -128,8 +129,8 @@ class FloatingAssistant(QDialog):
         )
         info.setWordWrap(True)
         info.setStyleSheet(
-            "color:#AAB7CA;font-size:12px;padding:10px;background:#121E32;"
-            "border:1px solid #293A55;border-radius:9px;"
+            "color:#526373;font-size:12px;padding:10px;background:#EAF1F4;"
+            "border:1px solid #D4E1E7;border-radius:9px;"
         )
         layout.addWidget(info)
 
@@ -137,13 +138,13 @@ class FloatingAssistant(QDialog):
         self.input = QLineEdit()
         self.input.setPlaceholderText("Ask Skyfall...")
         self.input.setStyleSheet(
-            "background:#101A2D;border:1px solid #30425E;border-radius:9px;"
-            "padding:11px;color:#F1F5FB;"
+            "background:#FFFFFF;color:#243441;border:1px solid #CFD9E0;border-radius:9px;"
+            "padding:11px;"
         )
         self.input.returnPressed.connect(self._submit)
         send = QPushButton("Send")
         send.setStyleSheet(
-            "background:#3478C8;border:1px solid #4B91E0;border-radius:9px;"
+            "background:#236F89;color:#FFFFFF;border:1px solid #236F89;border-radius:9px;"
             "padding:10px 14px;font-weight:650;"
         )
         send.clicked.connect(self._submit)
@@ -168,21 +169,21 @@ class ProfileManagerDialog(QDialog):
         self.setMinimumWidth(560)
         self.action = "close"
         self.selected_value = ""
-        self.setStyleSheet("QDialog{background:#0E1528;color:#E8ECF5;}")
+        self.setStyleSheet("QDialog{background:#F3F6F8;color:#1E2934;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         hint = QLabel("Select an existing profile or create a new one. Sign-in starts only after you explicitly request it.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color:#9FB0C8;font-size:12px;")
+        hint.setStyleSheet("color:#647585;font-size:12px;")
         layout.addWidget(hint)
 
         self.items = QListWidget()
         self.items.setStyleSheet(
-            "QListWidget{background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;border-radius:8px;padding:6px;}"
+            "QListWidget{background:#FFFFFF;color:#243441;border:1px solid #CFD9E0;border-radius:8px;padding:6px;}"
             "QListWidget::item{padding:9px;border-radius:5px;}"
-            "QListWidget::item:selected{background:#1D3A60;}"
+            "QListWidget::item:selected{background:#E1EFF3;color:#1E6177;}"
         )
         for label, value in entries:
             item = QListWidgetItem(label)
@@ -228,14 +229,14 @@ class AzureProfileCreateDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Create Azure profile")
         self.setMinimumWidth(540)
-        self.setStyleSheet("QDialog{background:#0E1528;color:#E8ECF5;}")
+        self.setStyleSheet("QDialog{background:#F3F6F8;color:#1E2934;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
 
         heading = QLabel("Connect a Microsoft Azure account")
-        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4F7FD;")
+        heading.setStyleSheet("font-size:17px;font-weight:700;color:#17232E;")
         layout.addWidget(heading)
 
         info = QLabel(
@@ -244,7 +245,7 @@ class AzureProfileCreateDialog(QDialog):
             "discovers the signed-in tenant and accessible subscriptions."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color:#9FB0C8;font-size:12px;")
+        info.setStyleSheet("color:#647585;font-size:12px;")
         layout.addWidget(info)
 
         form = QFormLayout()
@@ -256,7 +257,7 @@ class AzureProfileCreateDialog(QDialog):
         for field in (self.name_edit, self.tenant_edit):
             field.setMinimumHeight(36)
             field.setStyleSheet(
-                "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+                "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
                 "border-radius:8px;padding:7px 10px;"
             )
         form.addRow("Profile name", self.name_edit)
@@ -264,7 +265,7 @@ class AzureProfileCreateDialog(QDialog):
         layout.addLayout(form)
 
         self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color:#FF9B9B;font-size:11px;")
+        self.error_label.setStyleSheet("color:#A13F39;font-size:11px;")
         self.error_label.setWordWrap(True)
         layout.addWidget(self.error_label)
 
@@ -312,7 +313,7 @@ class MainWindow(QMainWindow):
         ("Azure Resources", "azure_resources"),
         ("Power Platform", "power_platform"),
         ("Flow Inventory", "power_platform_resources"),
-        ("Executions", "executions"),
+        ("Orchestration", "executions"),
         ("Reports", "reports"),
         ("Settings", "settings"),
     ]
@@ -379,6 +380,18 @@ class MainWindow(QMainWindow):
         self.pp_flow_open_button: QPushButton | None = None
         self.pp_flow_table: QTableWidget | None = None
         self.pp_flow_report_path: str | None = None
+        self.exec_search_input: QLineEdit | None = None
+        self.exec_candidates: QComboBox | None = None
+        self.exec_candidate_detail: QLabel | None = None
+        self.exec_identity_label: QLabel | None = None
+        self.exec_environment_label: QLabel | None = None
+        self.exec_progress: QProgressBar | None = None
+        self.exec_progress_label: QLabel | None = None
+        self.exec_stage_labels: list[QLabel] = []
+        self.exec_run_button: QPushButton | None = None
+        self._exec_candidate_rows: list[dict] = []
+        self._execution_orchestration_active = False
+        self._execution_plan_prepared = False
 
         self.floating = FloatingAssistant(self)
         self.floating.message_submitted.connect(self._handle_floating_message)
@@ -411,11 +424,7 @@ class MainWindow(QMainWindow):
         self.pages["azure_resources"] = self._build_azure_resources_page()
         self.pages["power_platform"] = self._build_power_platform_page()
         self.pages["power_platform_resources"] = self._build_power_platform_resources_page()
-        self.pages["executions"] = self._build_placeholder_page(
-            "Execution centre",
-            "Approved script and tool executions will be tracked here. Operational execution is not enabled yet.",
-            ["Execution plans", "Approval queue", "Live logs and results"],
-        )
+        self.pages["executions"] = self._build_execution_page()
         self.pages["reports"] = self._build_placeholder_page(
             "Reports library",
             "Reports generated by SKYFALL will be organized here once reporting tools are connected.",
@@ -439,7 +448,7 @@ class MainWindow(QMainWindow):
 
         self.statusBar().showMessage("SKYFALL desktop ready · Starting Copilot AI runtime...")
         self.statusBar().setStyleSheet(
-            "background:#0E1528;color:#8291AA;border-top:1px solid #202B43;padding:4px;"
+            "background:#FFFFFF;color:#647585;border-top:1px solid #E1E7EC;padding:4px;"
         )
 
         self.copilot_worker = CopilotWorker(
@@ -571,10 +580,10 @@ class MainWindow(QMainWindow):
         layout.setSpacing(20)
 
         greeting = QLabel("Your engineering workspace, in one place.")
-        greeting.setStyleSheet("font-size:25px;font-weight:750;color:#F4F7FD;")
+        greeting.setStyleSheet("font-size:25px;font-weight:750;color:#17232E;")
         sub = QLabel(
-            "Your personal engineering assistant is online. Conversation history is stored locally; "
-            "cloud operations will be introduced after the tool-security layer."
+            "Your personal engineering assistant is online. Plan engineering work, review account context, "
+            "and track supervised read-only operations from the Orchestration workspace."
         )
         sub.setObjectName("muted")
         sub.setWordWrap(True)
@@ -618,7 +627,8 @@ class MainWindow(QMainWindow):
             "SKYFALL retains separate conversations locally and can resume Copilot sessions. "
             "SKYFALL Core and Workspace MCP expose read-only status, capability discovery and metadata-only "
             "workspace search. Azure subscription discovery and Power Platform OAuth profile/environment "
-            "discovery are now available in read-only mode. Resource modification and script execution remain disabled."
+            "discovery are available in read-only mode. The v1.0 Execution Center prepares plans and runs "
+            "the reviewed native Flow Inventory route; general workspace script execution remains gated."
         )
         note.setObjectName("muted")
         note.setWordWrap(True)
@@ -678,7 +688,7 @@ class MainWindow(QMainWindow):
         header = QHBoxLayout()
         title_col = QVBoxLayout()
         title = QLabel("Talk to SKYFALL")
-        title.setStyleSheet("font-size:23px;font-weight:750;color:#F4F7FD;")
+        title.setStyleSheet("font-size:23px;font-weight:750;color:#17232E;")
         subtitle = QLabel(
             "Your Copilot conversation is private to your signed-in account and this local application. "
             "Operational tools are not enabled yet."
@@ -883,7 +893,7 @@ class MainWindow(QMainWindow):
             "do not add folders containing sensitive data unless policy permits sharing their metadata."
         )
         privacy_note.setWordWrap(True)
-        privacy_note.setStyleSheet("color:#B8C5D8;font-size:12px;")
+        privacy_note.setStyleSheet("color:#647585;font-size:12px;")
         privacy_layout.addWidget(privacy_note)
         layout.addWidget(privacy)
 
@@ -1222,7 +1232,7 @@ class MainWindow(QMainWindow):
         self.azure_profile_combo = QComboBox()
         self.azure_profile_combo.setMinimumHeight(36)
         self.azure_profile_combo.setStyleSheet(
-            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.azure_profile_combo.currentIndexChanged.connect(self._on_azure_profile_changed)
@@ -1386,7 +1396,7 @@ class MainWindow(QMainWindow):
         self.pp_profile_combo = QComboBox()
         self.pp_profile_combo.setMinimumHeight(36)
         self.pp_profile_combo.setStyleSheet(
-            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.pp_profile_combo.currentIndexChanged.connect(self._on_powerplatform_profile_changed)
@@ -1496,7 +1506,7 @@ class MainWindow(QMainWindow):
             value = QLabel(value_text)
             value.setObjectName("metricValue")
             value.setWordWrap(True)
-            value.setStyleSheet("font-size:18px;font-weight:750;color:#F6F8FC;")
+            value.setStyleSheet("font-size:18px;font-weight:750;color:#17232E;")
             detail = QLabel(detail_text)
             detail.setObjectName("muted")
             detail.setWordWrap(True)
@@ -1526,7 +1536,7 @@ class MainWindow(QMainWindow):
         self.pp_resource_environment_combo.setMinimumHeight(42)
         self.pp_resource_environment_combo.setPlaceholderText("Select a discovered environment")
         self.pp_resource_environment_combo.setStyleSheet(
-            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+            "background:#FFFFFF;color:#1E2934;border:1px solid #CFD9E0;"
             "border-radius:9px;padding:8px 11px;font-size:13px;"
         )
         self.pp_resource_environment_combo.currentIndexChanged.connect(self._on_powerplatform_environment_changed)
@@ -1678,11 +1688,11 @@ class MainWindow(QMainWindow):
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setStyleSheet(
-            "QTableWidget{background:#101A2D;alternate-background-color:#142139;"
-            "color:#E8ECF5;border:1px solid #293A55;gridline-color:#293A55;"
-            "selection-background-color:#24466D;}"
-            "QHeaderView::section{background:#17243A;color:#AFC3DD;border:0;"
-            "border-bottom:1px solid #30425E;padding:8px;font-weight:650;}"
+            "QTableWidget{background:#FFFFFF;alternate-background-color:#F6F9FA;"
+            "color:#243441;border:1px solid #DDE5EA;gridline-color:#E6ECEF;"
+            "selection-background-color:#DCECF1;}"
+            "QHeaderView::section{background:#F0F4F6;color:#455A69;border:0;"
+            "border-bottom:1px solid #DDE5EA;padding:8px;font-weight:650;}"
         )
 
     def _refresh_azure_profile_choices(self) -> None:
@@ -1894,6 +1904,10 @@ class MainWindow(QMainWindow):
             self.powerplatform_account_store.set_selected_environment(
                 profile_id, str(selected["environment_id"])
             )
+        if getattr(self, "exec_environment_label", None):
+            profile, environment = self._refresh_execution_context()
+            if self.exec_run_button:
+                self.exec_run_button.setEnabled(bool(self._execution_plan_prepared and profile and environment))
 
     def _on_microsoft_discovery_completed(self, action: str, payload: object) -> None:
         data = payload if isinstance(payload, dict) else {}
@@ -2091,6 +2105,37 @@ class MainWindow(QMainWindow):
                 if "report" in metrics:
                     metrics["report"].setText("Not generated")
 
+            if self._execution_orchestration_active:
+                self._execution_orchestration_active = False
+                profile, environment = self._refresh_execution_context()
+                if self.exec_run_button:
+                    self.exec_run_button.setEnabled(bool(self._execution_plan_prepared and profile and environment))
+                if self.exec_progress:
+                    self.exec_progress.setRange(0, 100)
+                    self.exec_progress.setValue(100 if data.get("success") else 60)
+                if data.get("success"):
+                    report_path = str((data.get("report") or {}).get("path") or "")
+                    if report_path and Path(report_path).is_file():
+                        for index in range(6, 10):
+                            self._set_execution_stage(index, "complete")
+                        if self.exec_progress_label:
+                            self.exec_progress_label.setText("Complete · Report validated and ready")
+                        if self.exec_candidate_detail:
+                            self.exec_candidate_detail.setText(f"Excel report ready: {report_path}")
+                    else:
+                        self._set_execution_stage(6, "complete")
+                        self._set_execution_stage(7, "attention")
+                        if self.exec_progress:
+                            self.exec_progress.setValue(80)
+                        if self.exec_progress_label:
+                            self.exec_progress_label.setText("Inventory returned, but the report file could not be validated")
+                else:
+                    self._set_execution_stage(6, "attention")
+                    if self.exec_progress_label:
+                        self.exec_progress_label.setText(
+                            f"Run needs attention · {data.get('error') or 'See Flow Inventory details'}"
+                        )
+
         elif action.startswith("powerplatform"):
             profiles = data.get("profiles", {})
             auth = data.get("auth", {})
@@ -2214,6 +2259,11 @@ class MainWindow(QMainWindow):
             if self._auth_refresh_queue:
                 QTimer.singleShot(500, self._run_next_auth_refresh)
 
+        if getattr(self, "exec_identity_label", None):
+            profile, environment = self._refresh_execution_context()
+            if self.exec_run_button and self._execution_plan_prepared:
+                self.exec_run_button.setEnabled(bool(profile and environment))
+
     def _on_microsoft_discovery_failed(self, action: str, error: str) -> None:
         if action == "azure_function_apps":
             if self.azure_inventory_button:
@@ -2229,6 +2279,17 @@ class MainWindow(QMainWindow):
             self.azure_status_label.setText(f"Azure discovery failed: {error}")
         elif self.pp_status_label:
             self.pp_status_label.setText(f"Power Platform discovery failed: {error}")
+        if action == "powerplatform_flow_inventory" and self._execution_orchestration_active:
+            self._execution_orchestration_active = False
+            profile, environment = self._refresh_execution_context()
+            if self.exec_run_button:
+                self.exec_run_button.setEnabled(bool(self._execution_plan_prepared and profile and environment))
+            self._set_execution_stage(6, "attention")
+            if self.exec_progress:
+                self.exec_progress.setRange(0, 100)
+                self.exec_progress.setValue(60)
+            if self.exec_progress_label:
+                self.exec_progress_label.setText(f"Run failed · {error}")
         expected_action = {
             "azure": {"azure", "azure_login"},
             "powerplatform": {"powerplatform_profiles", "powerplatform_login", "powerplatform_select", "powerplatform_environments"},
@@ -2237,6 +2298,327 @@ class MainWindow(QMainWindow):
             self._auth_refresh_target_in_flight = None
             if self._auth_refresh_queue:
                 QTimer.singleShot(500, self._run_next_auth_refresh)
+
+    def _build_execution_page(self) -> QWidget:
+        """Task-first orchestration surface with explicit identity and progress."""
+        page = QWidget()
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        content = QWidget()
+        layout = QVBoxLayout(content)
+        layout.setContentsMargins(30, 26, 30, 28)
+        layout.setSpacing(16)
+
+        eyebrow = QLabel("SKYFALL  /  ORCHESTRATION")
+        eyebrow.setObjectName("eyebrow")
+        layout.addWidget(eyebrow)
+        title = QLabel("Execution Center")
+        title.setObjectName("pageTitle")
+        layout.addWidget(title)
+        intro = QLabel(
+            "Turn an engineering request into a visible, reviewed workflow. SKYFALL shows each step, "
+            "the account context, and the report destination before you start."
+        )
+        intro.setObjectName("muted")
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
+
+        request_panel = QFrame()
+        request_panel.setObjectName("orchestrationHero")
+        request_layout = QVBoxLayout(request_panel)
+        request_layout.setContentsMargins(20, 18, 20, 18)
+        request_layout.setSpacing(11)
+        request_title = QLabel("What do you want SKYFALL to do?")
+        request_title.setObjectName("sectionTitle")
+        request_layout.addWidget(request_title)
+        request_row = QHBoxLayout()
+        self.exec_search_input = QLineEdit()
+        self.exec_search_input.setObjectName("orchestrationInput")
+        self.exec_search_input.setPlaceholderText("Example: Power Automate flow inventory script")
+        self.exec_search_input.setText("Power Automate flow inventory")
+        self.exec_search_input.returnPressed.connect(self._prepare_execution_plan)
+        request_row.addWidget(self.exec_search_input, 1)
+        prepare_button = QPushButton("Prepare plan")
+        prepare_button.setObjectName("primaryButton")
+        prepare_button.setMinimumHeight(42)
+        prepare_button.clicked.connect(self._prepare_execution_plan)
+        request_row.addWidget(prepare_button)
+        request_layout.addLayout(request_row)
+        hint = QLabel("Planning searches your enabled local workspaces. Only extracted metadata is used.")
+        hint.setObjectName("muted")
+        request_layout.addWidget(hint)
+        layout.addWidget(request_panel)
+
+        context_row = QHBoxLayout()
+        identity_panel = QFrame()
+        identity_panel.setObjectName("contextCard")
+        identity_layout = QVBoxLayout(identity_panel)
+        identity_layout.setContentsMargins(17, 15, 17, 15)
+        identity_layout.setSpacing(7)
+        identity_head = QLabel("MICROSOFT IDENTITY")
+        identity_head.setObjectName("eyebrow")
+        identity_layout.addWidget(identity_head)
+        self.exec_identity_label = QLabel("No Power Platform account selected")
+        self.exec_identity_label.setObjectName("contextValue")
+        self.exec_identity_label.setWordWrap(True)
+        identity_layout.addWidget(self.exec_identity_label)
+        identity_note = QLabel("Account name, username and tenant only. Tokens and secrets are never displayed.")
+        identity_note.setObjectName("muted")
+        identity_note.setWordWrap(True)
+        identity_layout.addWidget(identity_note)
+        context_row.addWidget(identity_panel, 1)
+
+        environment_panel = QFrame()
+        environment_panel.setObjectName("contextCard")
+        environment_layout = QVBoxLayout(environment_panel)
+        environment_layout.setContentsMargins(17, 15, 17, 15)
+        environment_layout.setSpacing(7)
+        environment_head = QLabel("TARGET ENVIRONMENT")
+        environment_head.setObjectName("eyebrow")
+        environment_layout.addWidget(environment_head)
+        self.exec_environment_label = QLabel("Select an environment in Flow Inventory")
+        self.exec_environment_label.setObjectName("contextValue")
+        self.exec_environment_label.setWordWrap(True)
+        environment_layout.addWidget(self.exec_environment_label)
+        environment_note = QLabel("The selected environment is checked again before the run starts.")
+        environment_note.setObjectName("muted")
+        environment_note.setWordWrap(True)
+        environment_layout.addWidget(environment_note)
+        context_row.addWidget(environment_panel, 1)
+        layout.addLayout(context_row)
+
+        run_panel = QFrame()
+        run_panel.setObjectName("panel")
+        run_layout = QVBoxLayout(run_panel)
+        run_layout.setContentsMargins(18, 16, 18, 16)
+        run_layout.setSpacing(10)
+        progress_header = QHBoxLayout()
+        progress_name = QLabel("RUN PROGRESS")
+        progress_name.setObjectName("eyebrow")
+        progress_header.addWidget(progress_name)
+        progress_header.addStretch(1)
+        self.exec_progress_label = QLabel("Waiting for a request")
+        self.exec_progress_label.setObjectName("muted")
+        progress_header.addWidget(self.exec_progress_label)
+        run_layout.addLayout(progress_header)
+        self.exec_progress = QProgressBar()
+        self.exec_progress.setObjectName("orchestrationProgress")
+        self.exec_progress.setRange(0, 100)
+        self.exec_progress.setValue(0)
+        self.exec_progress.setTextVisible(False)
+        self.exec_progress.setFixedHeight(9)
+        run_layout.addWidget(self.exec_progress)
+        self.exec_stage_labels = []
+        stage_rows = [
+            "Search approved workspaces",
+            "Inspect script requirements",
+            "Resolve target environment",
+            "Validate Microsoft sign-in",
+            "Prepare execution plan",
+            "Review and approve",
+            "Run controlled inventory",
+            "Validate generated output",
+            "Save Excel report",
+            "Deliver report and summary",
+        ]
+        stage_grid = QGridLayout()
+        stage_grid.setHorizontalSpacing(12)
+        stage_grid.setVerticalSpacing(7)
+        for index, label_text in enumerate(stage_rows):
+            step = QLabel(f"{index + 1:02d}")
+            step.setObjectName("stepNumber")
+            label = QLabel(label_text)
+            label.setObjectName("stepLabel")
+            state = QLabel("WAITING")
+            state.setObjectName("stepState")
+            stage_grid.addWidget(step, index, 0)
+            stage_grid.addWidget(label, index, 1)
+            stage_grid.addWidget(state, index, 2, Qt.AlignmentFlag.AlignRight)
+            self.exec_stage_labels.append(state)
+        stage_grid.setColumnStretch(1, 1)
+        run_layout.addLayout(stage_grid)
+        self.exec_candidate_detail = QLabel(
+            "No run plan yet. Prepare a plan to search workspace metadata and check the selected account context."
+        )
+        self.exec_candidate_detail.setObjectName("muted")
+        self.exec_candidate_detail.setWordWrap(True)
+        run_layout.addWidget(self.exec_candidate_detail)
+        self.exec_candidates = QComboBox()
+        self.exec_candidates.setObjectName("orchestrationCandidate")
+        self.exec_candidates.setPlaceholderText("Matching scripts appear here")
+        self.exec_candidates.currentIndexChanged.connect(self._show_execution_candidate)
+        self.exec_candidates.setVisible(False)
+        run_layout.addWidget(self.exec_candidates)
+        self.exec_run_button = QPushButton("Review and run read-only Flow Inventory")
+        self.exec_run_button.setObjectName("primaryButton")
+        self.exec_run_button.setMinimumHeight(42)
+        self.exec_run_button.setEnabled(False)
+        self.exec_run_button.clicked.connect(self._approve_and_run_orchestration)
+        run_layout.addWidget(self.exec_run_button, 0, Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(run_panel)
+
+        note = QLabel(
+            "v1.0 is introducing supervised orchestration in stages. This first task route uses SKYFALL's "
+            "read-only Dataverse inventory API to create the workbook; workspace scripts are inspected as "
+            "metadata and are not executed by this route. Every run requires a separate confirmation."
+        )
+        note.setObjectName("muted")
+        note.setWordWrap(True)
+        layout.addWidget(note)
+        layout.addStretch(1)
+        scroll.setWidget(content)
+        page_layout.addWidget(scroll)
+        return page
+
+    def _execution_context(self) -> tuple[dict | None, dict | None]:
+        profile_id = self.powerplatform_account_store.get_active_profile_id()
+        profile = self.powerplatform_account_store.get_profile(profile_id) if profile_id else None
+        selected = self.pp_resource_environment_combo.currentData() if self.pp_resource_environment_combo else None
+        return profile, selected if isinstance(selected, dict) else None
+
+    def _refresh_execution_context(self) -> tuple[dict | None, dict | None]:
+        profile, environment = self._execution_context()
+        if self.exec_identity_label:
+            if profile:
+                identity = " · ".join(str(profile.get(key) or "") for key in ("name", "username", "tenant_id") if profile.get(key))
+                self.exec_identity_label.setText(identity or "Saved Microsoft account selected")
+            else:
+                self.exec_identity_label.setText("No Power Platform account selected")
+        if self.exec_environment_label:
+            if environment:
+                self.exec_environment_label.setText(f"{environment.get('name') or 'Environment'} · {environment.get('environment_id', '')}")
+            else:
+                selected_id = str((profile or {}).get("selected_environment_id") or "")
+                self.exec_environment_label.setText(
+                    f"Saved environment {selected_id}; choose it on Flow Inventory to confirm its URL."
+                    if selected_id else "Select an environment in Flow Inventory"
+                )
+        return profile, environment
+
+    def _set_execution_stage(self, index: int, state: str) -> None:
+        if not self.exec_stage_labels or index < 0 or index >= len(self.exec_stage_labels):
+            return
+        label = self.exec_stage_labels[index]
+        label.setText(state.upper())
+        label.setProperty("stageState", state.lower())
+        label.style().unpolish(label)
+        label.style().polish(label)
+
+    def _prepare_execution_plan(self) -> None:
+        self._execution_plan_prepared = False
+        if self.exec_run_button:
+            self.exec_run_button.setEnabled(False)
+        query = self.exec_search_input.text().strip() if self.exec_search_input else ""
+        if not query:
+            if self.exec_candidate_detail:
+                self.exec_candidate_detail.setText("Describe a script or task to prepare a plan.")
+            return
+        if self.exec_progress:
+            self.exec_progress.setRange(0, 100)
+            self.exec_progress.setValue(0)
+        if self.exec_progress_label:
+            self.exec_progress_label.setText("Searching local metadata…")
+        for index in range(10):
+            self._set_execution_stage(index, "waiting")
+        try:
+            matches = self.workspace_manager.search_local(query, file_type="scripts", limit=40)
+        except Exception as exc:
+            if self.exec_candidate_detail:
+                self.exec_candidate_detail.setText(f"Workspace search failed: {type(exc).__name__}: {exc}")
+            if self.exec_progress_label:
+                self.exec_progress_label.setText("Plan could not be prepared")
+            return
+        self._exec_candidate_rows = matches
+        self._execution_plan_prepared = True
+        self._set_execution_stage(0, "complete")
+        self._set_execution_stage(1, "complete" if matches else "attention")
+        profile, environment = self._refresh_execution_context()
+        self._set_execution_stage(2, "complete" if environment else "attention")
+        self._set_execution_stage(3, "pending")
+        self._set_execution_stage(4, "complete")
+        self._set_execution_stage(5, "pending")
+        if self.exec_progress:
+            completed = 2 + int(bool(matches)) + int(bool(environment))
+            self.exec_progress.setValue(completed * 10)
+        if self.exec_progress_label:
+            self.exec_progress_label.setText(f"Plan prepared · {len(matches)} candidate(s) · account check on run")
+        if self.exec_candidates:
+            self.exec_candidates.blockSignals(True)
+            self.exec_candidates.clear()
+            for item in matches:
+                self.exec_candidates.addItem(
+                    f"{item.get('name')}  ·  {item.get('workspace_name')} / {item.get('relative_path')}",
+                    item.get("file_id"),
+                )
+            self.exec_candidates.setVisible(bool(matches))
+            self.exec_candidates.blockSignals(False)
+        if self.exec_candidate_detail:
+            if matches:
+                self._show_execution_candidate(self.exec_candidates.currentIndex())
+            else:
+                self.exec_candidate_detail.setText(
+                    "No matching indexed script was found. Add or scan the approved workspace, or use the built-in read-only Flow Inventory directly."
+                )
+        can_run = bool(self._execution_plan_prepared and profile and environment)
+        if self.exec_run_button:
+            self.exec_run_button.setEnabled(can_run)
+        if not profile:
+            self._set_execution_stage(3, "attention")
+
+    def _show_execution_candidate(self, index: int) -> None:
+        if not self.exec_candidate_detail or index < 0 or index >= len(self._exec_candidate_rows):
+            return
+        item = self._exec_candidate_rows[index]
+        params = ", ".join(item.get("parameters") or []) or "No parameters detected"
+        imports = ", ".join(item.get("imports") or []) or "No imports detected"
+        self.exec_candidate_detail.setText(
+            f"{item.get('summary', '')}\nRequirements: {imports}\nParameters: {params}\n"
+            "Static metadata only; the source file has not been opened or executed."
+        )
+
+    def _approve_and_run_orchestration(self) -> None:
+        if self._microsoft_worker is not None and self._microsoft_worker.isRunning():
+            QMessageBox.information(
+                self, "Microsoft task in progress",
+                "Wait for the current Microsoft account or inventory task to finish before starting this run.",
+            )
+            return
+        profile, environment = self._refresh_execution_context()
+        if not profile or not environment:
+            QMessageBox.information(
+                self, "Complete the run context",
+                "Select a saved Microsoft account and an exact environment in Flow Inventory first.",
+            )
+            return
+        account = str(profile.get("username") or profile.get("name") or "Microsoft account")
+        environment_name = str(environment.get("name") or "selected environment")
+        answer = QMessageBox.question(
+            self,
+            "Approve read-only inventory?",
+            f"Generate a Power Automate cloud-flow report from {environment_name} using {account}?\n\n"
+            "This uses SKYFALL's read-only Dataverse metadata inventory and creates a local Excel file. "
+            "It does not execute the workspace script or modify cloud resources.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        self._execution_orchestration_active = True
+        if self.exec_run_button:
+            self.exec_run_button.setEnabled(False)
+        self._set_execution_stage(5, "complete")
+        self._set_execution_stage(6, "running")
+        if self.exec_progress:
+            self.exec_progress.setRange(0, 0)
+        if self.exec_progress_label:
+            self.exec_progress_label.setText("Retrieving flow metadata and preparing the workbook…")
+        self._start_powerplatform_flow_inventory()
 
     def _build_placeholder_page(self, title: str, description: str, items: list[str]) -> QWidget:
         page = QWidget()
@@ -2260,7 +2642,7 @@ class MainWindow(QMainWindow):
         panel_layout.addWidget(self._status_row("Integration status", "Not connected", "offline"))
         for item in items:
             line = QLabel(f"•  {item}")
-            line.setStyleSheet("color:#B8C5D8;font-size:13px;padding:5px 0;")
+            line.setStyleSheet("color:#526373;font-size:13px;padding:5px 0;")
             panel_layout.addWidget(line)
         layout.addWidget(panel)
         layout.addStretch(1)
@@ -2315,7 +2697,7 @@ class MainWindow(QMainWindow):
         lbl.setObjectName("metricLabel")
         val = QLabel(value)
         val.setObjectName("metricValue")
-        val.setStyleSheet("font-size:19px;font-weight:750;color:#F6F8FC;")
+        val.setStyleSheet("font-size:19px;font-weight:750;color:#17232E;")
         self.metric_values[label] = val
         det = QLabel(detail)
         det.setObjectName("muted")
@@ -2334,7 +2716,7 @@ class MainWindow(QMainWindow):
         box.setContentsMargins(14, 15, 14, 14)
         box.setSpacing(10)
         heading = QLabel(title)
-        heading.setStyleSheet("font-size:13px;font-weight:700;color:#EAF0F9;")
+        heading.setStyleSheet("font-size:13px;font-weight:700;color:#243441;")
         body = QLabel(description)
         body.setObjectName("muted")
         body.setWordWrap(True)
@@ -2352,7 +2734,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         name = QLabel(label)
-        name.setStyleSheet("color:#AAB7CA;font-size:11px;")
+        name.setStyleSheet("color:#647585;font-size:11px;")
         status = QLabel(value)
         status.setObjectName(
             {"good": "statusGood", "pending": "statusPending", "offline": "statusOffline"}.get(state, "statusOffline")
@@ -2511,7 +2893,7 @@ class MainWindow(QMainWindow):
         self.new_chat_button.setEnabled(True)
         self.history_list.setEnabled(True)
         self._refresh_conversation_list(select_id=self.current_conversation.id)
-        self.statusBar().showMessage("SKYFALL AI connected · 19 MCP tools available · cloud changes and script execution disabled")
+        self.statusBar().showMessage("SKYFALL AI connected · 20 MCP tools available · general script execution disabled")
 
     def _on_ai_connection_failed(self, error: str) -> None:
         self._set_status_value("AI RUNTIME", "Connection failed")

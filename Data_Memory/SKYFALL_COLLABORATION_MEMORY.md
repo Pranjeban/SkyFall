@@ -71,3 +71,19 @@ The child import preflight reported the exact failure: `ImportError: cannot impo
 ## Unit test expectation fixes (2026-11-17)
 
 User ran all 77 tests and reported two assertion failures. Updated `test_core_mcp_tools.py` to expect 20 total enabled tools and 4 Power Platform discovery tools (the added `configure_powerplatform_app` capability). Updated the client ID error regex in `test_powerplatform_accounts.py` to escape literal parentheses in `Application (client) ID GUID`. Reran core MCP tests (4 passed) and Power Platform account tests (5 passed; `httpx` stubbed only to satisfy an import in this dependency-limited workspace; tests use a fake HTTP client). `git diff --check` passed.
+
+## MCP test confirmed working (2026-11-17)
+
+User confirmed: “good now it is working”. Mark the MCP stdio startup/import issue and stale unit assertions resolved. Keep the v0.9.2 test and Azure login restoration notes for history.
+
+## v1.0 milestone accepted and started (2026-11-17)
+
+The user named Intelligent Engineering Orchestration as the next major milestone, requesting ten stages from workspace discovery through report delivery, identity/progress visibility, and a major professional redesign with Dribbble/Behance inspiration. Created `releases/v1.0/README_SKYFALL_V1_0.md` as the acceptance/architecture record. Started a preview Execution Center with staged plan progress, safe identity context, and a reviewed native inventory route. This is not a completed v1.0 release: arbitrary workspace script execution remains disabled pending a controlled security boundary.
+
+## v1.0 Execution Center preview implemented (2026-11-17)
+
+- Added a task-first Execution Center with approved-workspace script metadata search, parameters/imports summary, explicit account/tenant and environment context (no secrets), ten visible run stages, monotonic planning progress, indeterminate network progress, and explicit confirmation before the built-in read-only Dataverse Flow Inventory report run.
+- Added a professional light stone/slate/blue-teal palette across app surfaces and chat for better long-session contrast. Sidebar nav label is now Orchestration.
+- Design references reviewed: Dribbble AI Workflow Builder, Behance Nexora automation dashboard, Microsoft Fluent progress bar/wait UX. See `releases/v1.0/README_SKYFALL_V1_0.md`.
+- Important scope: this first wired route shows workspace script metadata but does not execute workspace source; it runs SKYFALL's native read-only inventory API. A general script runner is still gated on an actual security boundary. The app remains version 0.9.2 until all v1.0 execution/validation requirements are complete.
+- Verification: `py_compile` and `git diff --check` passed. Visual QA not performed because PySide6 is unavailable in this workspace's active interpreter.
