@@ -42,3 +42,7 @@ The smoke test now matches v0.9.2's tool set and direct OAuth setup. It performs
 ## MCP Azure login import repair
 
 Restored the Azure MCP account-login tool that the server imports: new named isolated Azure profile login and existing-profile sign-in run as an authentication job. Test mode blocks external login. Regression coverage added for missing inputs and the test-mode guard.
+
+## Unit regression count/string fixes
+
+Updated v0.9.2 capability counts (20 total tools, 4 Power Platform discovery tools) and corrected the regex so literal parentheses in the client ID validation message match correctly.

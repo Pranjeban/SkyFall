@@ -106,3 +106,19 @@ Updated the smoke test from v0.9.1 to v0.9.2: added `configure_powerplatform_app
 ### Fix and verification
 
 Restored `start_azure_login` in `skyfall_mcp/tools/accounts.py` for new or existing isolated Azure profiles. It starts browser login as an authentication job, validates inputs, and refuses external sign-in in test mode. Added unit tests for missing inputs and test-mode blocking. Python compilation, static verification that every account function imported by the MCP server exists, and `git diff --check` passed. Full end-to-end test still needs rerunning in the configured Windows Python environment.
+
+## User reported two unit-test failures (2026-11-17)
+
+> ======================================================================
+> FAIL: test_status_reports_read_only_microsoft_discovery_and_no_execution
+> self.assertEqual(payload["enabled_tools"], 19)
+> AssertionError: 20 != 19
+>
+> FAIL: test_app_id_validation_and_profiles_persist_per_user_selection
+> AssertionError: "client ID GUID" does not match "Enter the Application (client) ID GUID from your Microsoft Entra app registration."
+>
+> Ran 77 tests in 1.887s (failures=2)
+>
+> corret this also please
+
+Fixes: updated the status expectation to 20 total tools and 4 Power Platform discovery tools; escaped literal parentheses in the client-ID validation regex. Verified 4 core MCP tests and 5 account-store/API tests pass (the latter with only an import stub for missing `httpx`; HTTP is mocked). `git diff --check` passed.

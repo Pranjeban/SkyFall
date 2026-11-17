@@ -27,7 +27,7 @@ class PowerPlatformAccountStoreTests(unittest.TestCase):
     def test_app_id_validation_and_profiles_persist_per_user_selection(self):
         with tempfile.TemporaryDirectory() as root:
             store = PowerPlatformAccountStore(root)
-            with self.assertRaisesRegex(ValueError, "client ID GUID"):
+            with self.assertRaisesRegex(ValueError, r"Application \(client\) ID GUID"):
                 store.set_client_id("not-a-guid")
             store.set_client_id(CLIENT_ID)
             store.upsert_profile({"profile_id": PROFILE_ID, "name": "QA", "username": "qa@example.invalid", "tenant_id": "tenant", "selected_environment_id": ""})

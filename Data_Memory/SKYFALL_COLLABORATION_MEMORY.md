@@ -67,3 +67,7 @@ The test script also still had v0.9.1 expectations: 19 tools, no `configure_powe
 ## MCP server import failure fixed (2026-11-17)
 
 The child import preflight reported the exact failure: `ImportError: cannot import name 'start_azure_login' from 'skyfall_mcp.tools.accounts'` at `skyfall_mcp/server.py` line 16. The account tool module had been rewritten for Power Platform OAuth without restoring its Azure login entry point, while the MCP server still registered and imported that tool. Restored `start_azure_login` with isolated Azure profile creation/sign-in, existing-profile support, missing-input responses, and a `SKYFALL_TEST_MODE` guard. Added unit coverage for missing profile/tenant input and test-mode blocking. Python compilation, AST verification of all account imports, and `git diff --check` pass. Full MCP stdio execution remains to be verified in the user's Python 3.11 environment.
+
+## Unit test expectation fixes (2026-11-17)
+
+User ran all 77 tests and reported two assertion failures. Updated `test_core_mcp_tools.py` to expect 20 total enabled tools and 4 Power Platform discovery tools (the added `configure_powerplatform_app` capability). Updated the client ID error regex in `test_powerplatform_accounts.py` to escape literal parentheses in `Application (client) ID GUID`. Reran core MCP tests (4 passed) and Power Platform account tests (5 passed; `httpx` stubbed only to satisfy an import in this dependency-limited workspace; tests use a fake HTTP client). `git diff --check` passed.

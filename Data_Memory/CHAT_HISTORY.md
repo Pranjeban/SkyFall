@@ -72,3 +72,7 @@ The user reran the preflight and provided:
 `ImportError: cannot import name 'start_azure_login' from 'skyfall_mcp.tools.accounts'`
 
 `skyfall_mcp.server` imports/registers this Azure login capability, but the rewritten `skyfall_mcp.tools.accounts` module had accidentally omitted the function. Restored it using `AzureProfileManager`, `AUTH_JOBS`, isolated profile creation/login, and a test-mode guard. Added unit checks for required inputs and blocked external sign-in in test mode. Python compilation, static import-name verification, and `git diff --check` pass; rerun the MCP smoke test in the configured environment.
+
+## Two stale test assertions corrected (2026-11-17)
+
+The user reported 2 failures in a 77-test run. Changed expected total enabled tools from 19 to 20, expected Power Platform discovery tools from 3 to 4, and escaped parentheses in the app-ID validation regex. Reruns: `test_core_mcp_tools` 4/4 passed; `test_powerplatform_accounts` 5/5 passed (with an import-only httpx stub in this workspace because its real dependency is not installed; API calls are mocked). Diff check passed.
