@@ -19,7 +19,7 @@ class CoreMcpToolTests(unittest.TestCase):
         self.assertEqual(payload["power_platform_connector"], "read_only_profile_environment_and_cloud_flow_inventory_available")
         self.assertEqual(payload["script_execution"], "not_enabled")
         self.assertEqual(payload["cloud_resource_modification"], "not_enabled")
-        self.assertEqual(payload["version"], "0.9.1")
+        self.assertEqual(payload["version"], "0.9.2")
         self.assertEqual(payload["enabled_tools"], 19)
         self.assertEqual(payload["enabled_core_tools"], 3)
         self.assertEqual(payload["enabled_workspace_tools"], 4)

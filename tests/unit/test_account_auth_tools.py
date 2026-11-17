@@ -16,43 +16,36 @@ class FakeJobs:
         return {"job_id": "auth-test-123", "status": "running", "label": label}
 
 
-class FakePowerPlatformDiscovery:
+class FakePowerPlatformStore:
     def __init__(self):
-        pass
+        self.client_id = "11111111-2222-3333-4444-555555555555"
 
-    def create_profile_and_login(self, profile_name, environment):
-        return {"success": True}
+    def get_client_id(self):
+        return self.client_id
 
 
 class AccountAuthToolTests(unittest.TestCase):
-    def test_powerplatform_login_requires_global_profile_confirmation(self):
+    def test_powerplatform_login_requires_client_app_setup(self):
         jobs = FakeJobs()
-        with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(
-            accounts, "PowerPlatformDiscovery", FakePowerPlatformDiscovery
-        ):
+        store = FakePowerPlatformStore()
+        store.client_id = ""
+        with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(accounts, "PowerPlatformAccountStore", lambda: store):
             result = json.loads(accounts.start_powerplatform_login("Company QA"))
-        self.assertTrue(result["requires_confirmation"])
+        self.assertEqual(result["requires_input"], ["client_id"])
         self.assertFalse(result.get("login_started", False))
         self.assertEqual(jobs.started, [])
-        self.assertIn("globally active", result["warning"])
 
-    def test_powerplatform_login_starts_after_explicit_confirmation(self):
+    def test_powerplatform_login_starts_after_app_setup(self):
         jobs = FakeJobs()
-        with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(
-            accounts, "PowerPlatformDiscovery", FakePowerPlatformDiscovery
-        ):
-            result = json.loads(
-                accounts.start_powerplatform_login(
-                    "Company QA", "https://qa.crm.dynamics.com", True
-                )
-            )
+        with patch.object(accounts, "AUTH_JOBS", jobs), patch.object(accounts, "PowerPlatformAccountStore", FakePowerPlatformStore):
+            result = json.loads(accounts.start_powerplatform_login("Company QA", "contoso.com"))
         self.assertTrue(result["login_started"])
         self.assertEqual(result["job_id"], "auth-test-123")
         self.assertEqual(len(jobs.started), 1)
 
-    def test_powerplatform_login_validates_profile_name_length(self):
-        result = json.loads(accounts.start_powerplatform_login("X" * 31, confirm_global_profile_activation=True))
-        self.assertIn("error", result)
+    def test_powerplatform_login_requires_profile_name(self):
+        result = json.loads(accounts.start_powerplatform_login(""))
+        self.assertEqual(result["requires_input"], ["profile_name"])
         self.assertFalse(result.get("login_started", False))
 
 

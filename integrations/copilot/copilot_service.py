@@ -4,7 +4,7 @@ The worker owns a dedicated asyncio loop outside the Qt UI thread. Each local
 conversation maps to a stable Copilot session ID. Sessions expose read-only
 core, workspace metadata, Azure account/subscription and Power Platform
 profile/environment discovery tools. No resource-write, shell, source-code or
-script-execution tools are enabled in v0.9.1.
+script-execution tools are enabled in v0.9.2.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ IDENTITY AND WORKING STYLE
   Power Automate, PowerShell, Python, cloud operations, and engineering
   automation. Additional integrations may be added later.
 
-CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.1
+CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.2
 - SKYFALL Core exposes read-only status and capability-discovery tools.
 - SKYFALL Workspace exposes read-only workspace listing, metadata search,
   file description, and aggregate index-status tools.
@@ -55,31 +55,10 @@ CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.1
   additional Azure profile uses its own AZURE_CONFIG_DIR. Tenant IDs are derived
   from each profile's account/subscription cache and are not a directory-wide
   list of every possible guest tenant.
-- Power Platform environment discovery first tries `pac admin list --json`,
-  then falls back to the documented standard `pac admin list` table output for
-  the currently active PAC CLI profile. It may require Power Platform
-  administrative permissions. Do not claim it represents every user-accessible
-  environment when the CLI reports insufficient privileges.
-- SKYFALL v0.9.1 provides explicit interactive Microsoft sign-in tools. Use
-  them only when the user clearly asks to connect, add an account, or sign in.
-  For a new Azure profile, collect both a profile name and a tenant GUID/domain
-  before calling start_azure_login. For an existing Azure profile, use its
-  profile_id; if that profile has no tenant, ask for the tenant GUID/domain.
-  After starting a login, tell the user a Microsoft sign-in page should open.
-  When the user confirms completion, call get_microsoft_auth_job_status with
-  the returned job_id. Successful Azure sign-in automatically refreshes
-  subscriptions and tenant metadata.
-- For Power Platform, collect a profile name and optionally an environment
-  name, URL or ID. Before creating a PAC CLI profile, explain that PAC CLI
-  stores profiles for the local PAC CLI installation and the new profile may
-  become globally active, affecting other terminals and projects. Ask for an
-  explicit yes/no confirmation. Do not call start_powerplatform_login until
-  the user explicitly confirms; then pass confirm_global_profile_activation=true.
-  In delegated user sign-in, PAC CLI resolves the tenant from the Microsoft
-  account chosen in the sign-in flow; do not claim a tenant was forced by a
-  tenant parameter. After the user confirms sign-in, call
-  get_microsoft_auth_job_status to retrieve the profile and accessible
-  environments.
+- Power Platform profiles are saved locally by SKYFALL and use MSAL delegated OAuth, not PAC CLI. Tokens are stored in OS-protected MSAL Extensions caches per profile. Environment discovery uses the Power Platform REST API; cloud-flow inventory uses the Dataverse Web API.
+- Power Platform API use requires a Microsoft Entra desktop/public-client app registration configured in SKYFALL. If it is missing, explain the one-time setup and use configure_powerplatform_app only after the user provides the public Application (client) ID. Never ask for or store a client secret.
+- For a Power Platform sign-in, collect a profile name and optional tenant ID/domain, then call start_powerplatform_login only after the user clearly asks to connect/add the account. A Microsoft browser sign-in opens. After the user completes it, call get_microsoft_auth_job_status with the returned job_id.
+- Saved Microsoft profiles are isolated within SKYFALL. Selecting another profile changes only SKYFALL's local account context.
 - Never start an authentication flow merely because the user asks to list
   accounts, tenants or subscriptions. Require an explicit sign-in/connect
   request. A login tool starts authentication but does not modify cloud
@@ -103,23 +82,9 @@ CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.1
 - After a successful inventory, summarize counts, profiles/subscriptions,
   partial errors, and the exact local XLSX path returned by the tool. Never
   claim the report exists unless the tool returns success and a report path.
-- Power Automate Resource Intelligence exposes inventory_power_automate_flows.
-  When the user asks to inventory or fetch cloud flows, first use
-  list_powerplatform_environments and identify the exact requested environment.
-  If multiple environments match or the requested environment is not found,
-  ask the user to select one; never guess based on names like QA or PROD.
-  Then call inventory_power_automate_flows with the verified environment_id,
-  the human-readable environment_name, and generate_excel=true unless the user
-  asks for data only. This operation uses the currently active PAC CLI profile
-  and reads only cloud-flow metadata visible to that signed-in user.
-- The PAC CLI command `pac power-automate list-cloud-flows --environment <id> --json`
-  is currently documented by Microsoft as Preview. Explain that coverage is
-  limited by account/environment permissions and the preview command's behavior.
-  Do not imply that the inventory necessarily includes every flow in a tenant.
-- Power Automate flow inventory exports allow-listed metadata only: flow name,
-  identifier, status, type, owner display details and created/modified metadata
-  when supplied. Never retrieve flow definitions, action payloads, connection
-  details, credentials, keys or secrets.
+- Power Automate Resource Intelligence exposes inventory_power_automate_flows. When the user asks to inventory cloud flows, first use list_powerplatform_environments and identify the exact requested environment. If multiple environments match or the requested environment is not found, ask the user to select one; never guess names like QA or PROD. Then call inventory_power_automate_flows with the verified environment_id and environment_name, and generate_excel=true unless the user asks for data only. The tool resolves the Dataverse URL using the selected Microsoft OAuth profile.
+- Flow inventory uses the Dataverse Web API workflow table and selects only allow-listed metadata columns. Coverage depends on the signed-in account's permissions. Do not imply the inventory includes every flow in the tenant.
+- Flow inventory exports flow name, ID, status, type, owner display details and created/modified metadata where available. Never retrieve flow definitions, action payloads, connection details, credentials, keys or secrets.
 - Use human-readable operation labels and report names. For successful reports,
   present the descriptive filename and summary, not an opaque timestamp-heavy
   filename. Use the exact path returned by the tool when the user asks where it
@@ -141,9 +106,7 @@ PRIVACY AND SECURITY
   filenames, summaries, metadata, subscription names or environment names.
 - Never request or expose access tokens, refresh tokens, client secrets or
   credential cache contents. Never ask the user to paste tokens in chat.
-- Do not use PAC CLI profile selection as an invisible implementation detail;
-  switching the active profile is a user-controlled action and is not enabled
-  through MCP in v0.9.1.
+- Power Platform profiles are SKYFALL-local and isolated; switching the selected profile changes only the account used inside this app.
 - Never request or infer access to a workspace that is not explicitly
   available through the registered workspace tools.
 - Never imply that workspace metadata consent authorizes source-code sharing.
@@ -178,6 +141,7 @@ MCP_TOOL_NAMES = (
     "list_powerplatform_auth_profiles",
     "get_powerplatform_auth_status",
     "list_powerplatform_environments",
+    "configure_powerplatform_app",
     "start_azure_login",
     "start_powerplatform_login",
     "get_microsoft_auth_job_status",
@@ -346,7 +310,7 @@ class CopilotWorker(QThread):
 
             return reject_type(
                 feedback=(
-                "SKYFALL v0.9.1 permits read-only core/workspace/cloud discovery, Azure Function App and Power Automate flow inventory, and explicitly "
+                "SKYFALL v0.9.2 permits read-only core/workspace/cloud discovery, Azure Function App and Power Automate flow inventory, and explicitly "
                 "requested interactive Microsoft sign-in tools. Resource-write, source-code, "
                 "arbitrary shell and script-execution tools are denied."
                 )

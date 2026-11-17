@@ -5,7 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import QThread, Signal
 
 from .azure_profiles import AzureProfileManager
-from .powerplatform import PowerPlatformDiscovery
+from .powerplatform_accounts import PowerPlatformApi
 from .azure_resources import AzureFunctionAppInventory
 from .powerplatform_resources import PowerPlatformFlowInventory
 
@@ -19,6 +19,18 @@ class MicrosoftDiscoveryWorker(QThread):
         self.action = action
         self.profile_id = profile_id
         self.params = params or {}
+
+    @staticmethod
+    def _powerplatform_snapshot(discovery: PowerPlatformApi) -> dict:
+        store = discovery.store
+        rows = store.list_profiles()
+        active_id = store.get_active_profile_id()
+        active = store.get_profile(active_id)
+        return {
+            "profiles": {"success": True, "count": len(rows), "profiles": [{**item, "active": item.get("profile_id") == active_id} for item in rows]},
+            "auth": {"authenticated": active is not None, "active_profile": active, "profile_count": len(rows), "client_id_configured": bool(store.get_client_id())},
+            "environments": discovery.list_environments() if active else {"success": False, "error": "Add or select a Microsoft account profile.", "environments": []},
+        }
 
     def run(self) -> None:
         try:
@@ -60,39 +72,31 @@ class MicrosoftDiscoveryWorker(QThread):
                 payload = inventory.inventory(
                     environment_id=str(self.params.get("environment_id", "")),
                     environment_name=str(self.params.get("environment_name", "")),
+                    environment_url=str(self.params.get("environment_url", "")),
+                    profile_id=str(self.params.get("profile_id", "")) or None,
                     generate_excel=bool(self.params.get("generate_excel", True)),
                 )
                 if not payload.get("success"):
                     raise RuntimeError(payload.get("error") or "Power Automate flow inventory failed.")
             elif self.action == "powerplatform_profiles":
-                discovery = PowerPlatformDiscovery()
-                profiles = discovery.list_auth_profiles()
-                auth = discovery.get_auth_status()
-                payload = {
-                    "profiles": profiles,
-                    "auth": auth,
-                    "environments": discovery.list_environments() if auth.get("authenticated") else {"success": False, "error": "No active PAC profile.", "environments": []},
-                }
+                discovery = PowerPlatformApi()
+                payload = self._powerplatform_snapshot(discovery)
             elif self.action == "powerplatform_login":
-                discovery = PowerPlatformDiscovery()
-                payload = discovery.create_profile_and_login(
+                discovery = PowerPlatformApi()
+                result = discovery.add_account(
                     str(self.params.get("profile_name", "")),
-                    str(self.params.get("environment", "")),
+                    str(self.params.get("tenant", "organizations")),
                 )
-                if not payload.get("success"):
-                    raise RuntimeError(payload.get("error") or "Power Platform sign-in did not complete.")
+                if not result.get("success"):
+                    raise RuntimeError(result.get("error") or "Power Platform sign-in did not complete.")
+                payload = self._powerplatform_snapshot(discovery)
             elif self.action == "powerplatform_select":
-                discovery = PowerPlatformDiscovery()
-                payload = discovery.select_profile(int(self.params.get("index", 0)))
-                if not payload.get("success"):
-                    raise RuntimeError(payload.get("error") or "Could not select PAC CLI profile.")
+                discovery = PowerPlatformApi()
+                discovery.select_profile(str(self.params.get("profile_id", "")))
+                payload = self._powerplatform_snapshot(discovery)
             elif self.action == "powerplatform_environments":
-                discovery = PowerPlatformDiscovery()
-                payload = {
-                    "profiles": discovery.list_auth_profiles(),
-                    "auth": discovery.get_auth_status(),
-                    "environments": discovery.list_environments(),
-                }
+                discovery = PowerPlatformApi()
+                payload = self._powerplatform_snapshot(discovery)
             else:
                 raise ValueError(f"Unsupported Microsoft discovery action: {self.action}")
             self.completed.emit(self.action, payload)

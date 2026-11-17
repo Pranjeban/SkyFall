@@ -45,7 +45,7 @@ from skyfall_workspace.manager import WorkspaceManager
 from skyfall_workspace.worker import WorkspaceScanWorker
 from skyfall_cloud.azure_profiles import AzureProfileManager
 from skyfall_cloud.powerplatform_resources import PowerPlatformFlowInventory
-from skyfall_cloud.powerplatform import PowerPlatformDiscovery
+from skyfall_cloud.powerplatform_accounts import PowerPlatformAccountStore
 from skyfall_cloud.worker import MicrosoftDiscoveryWorker
 
 
@@ -180,7 +180,7 @@ class ProfileManagerDialog(QDialog):
 
         self.items = QListWidget()
         self.items.setStyleSheet(
-            "QListWidget{background:#101A2D;color:#E8ECF5;border:1px solid #30425E;border-radius:8px;padding:6px;}"
+            "QListWidget{background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;border-radius:8px;padding:6px;}"
             "QListWidget::item{padding:9px;border-radius:5px;}"
             "QListWidget::item:selected{background:#1D3A60;}"
         )
@@ -256,8 +256,8 @@ class AzureProfileCreateDialog(QDialog):
         for field in (self.name_edit, self.tenant_edit):
             field.setMinimumHeight(36)
             field.setStyleSheet(
-                "background:#101A2D;color:#E8ECF5;border:1px solid #30425E;"
-                "border-radius:8px;padding:7px;"
+                "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+                "border-radius:8px;padding:7px 10px;"
             )
         form.addRow("Profile name", self.name_edit)
         form.addRow("Tenant ID / domain", self.tenant_edit)
@@ -300,82 +300,6 @@ class AzureProfileCreateDialog(QDialog):
     @property
     def tenant_id(self) -> str:
         return self.tenant_edit.text().strip()
-
-
-class PowerPlatformProfileCreateDialog(QDialog):
-    """Collect a PAC profile name and optional default environment."""
-
-    def __init__(self, parent=None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("Create Power Platform profile")
-        self.setMinimumWidth(540)
-        self.setStyleSheet("QDialog{background:#0E1528;color:#E8ECF5;}")
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(12)
-        heading = QLabel("Connect a Power Platform account")
-        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4F7FD;")
-        layout.addWidget(heading)
-        info = QLabel(
-            "Choose a local profile name and (optionally) a target environment URL, ID or name. "
-            "SKYFALL will then open Microsoft's sign-in experience. Choose the correct work account in the browser; "
-            "PAC CLI resolves the tenant from that identity. After sign-in, SKYFALL automatically discovers environments visible to that account."
-        )
-        info.setWordWrap(True)
-        info.setStyleSheet("color:#9FB0C8;font-size:12px;")
-        layout.addWidget(info)
-
-        form = QFormLayout()
-        self.name_edit = QLineEdit()
-        self.name_edit.setPlaceholderText("For example: Company Power Platform")
-        self.environment_edit = QLineEdit()
-        self.environment_edit.setPlaceholderText("Optional: environment name, URL or ID")
-        for field in (self.name_edit, self.environment_edit):
-            field.setMinimumHeight(36)
-            field.setStyleSheet(
-                "background:#101A2D;color:#E8ECF5;border:1px solid #30425E;"
-                "border-radius:8px;padding:7px;"
-            )
-        form.addRow("Profile name", self.name_edit)
-        form.addRow("Default environment (optional)", self.environment_edit)
-        layout.addLayout(form)
-        self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color:#FF9B9B;font-size:11px;")
-        layout.addWidget(self.error_label)
-
-        buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setText("Continue to sign in")
-        buttons.button(QDialogButtonBox.StandardButton.Ok).setObjectName("primaryButton")
-        buttons.accepted.connect(self._validate_and_accept)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
-
-    def _validate_and_accept(self) -> None:
-        name = self.name_edit.text().strip()
-        environment = self.environment_edit.text().strip()
-        if not name:
-            self.error_label.setText("Enter a profile name.")
-            self.name_edit.setFocus()
-            return
-        if len(name) > 30:
-            self.error_label.setText("PAC CLI profile name must be 30 characters or fewer.")
-            self.name_edit.setFocus()
-            return
-        if len(environment) > 300 or any(ch in environment for ch in "\r\n\x00"):
-            self.error_label.setText("The environment name, URL or ID is invalid.")
-            return
-        self.accept()
-
-    @property
-    def profile_name(self) -> str:
-        return self.name_edit.text().strip()
-
-    @property
-    def environment(self) -> str:
-        return self.environment_edit.text().strip()
 
 
 class MainWindow(QMainWindow):
@@ -432,7 +356,7 @@ class MainWindow(QMainWindow):
         self.workspace_scan_buttons: list[QPushButton] = []
         self.workspace_manage_buttons: list[QPushButton] = []
         self.azure_profile_manager = AzureProfileManager()
-        self.powerplatform_discovery = PowerPlatformDiscovery()
+        self.powerplatform_account_store = PowerPlatformAccountStore()
         self._microsoft_worker: MicrosoftDiscoveryWorker | None = None
         self.azure_profile_combo: QComboBox | None = None
         self.azure_status_label: QLabel | None = None
@@ -446,6 +370,7 @@ class MainWindow(QMainWindow):
         self.azure_inventory_report_path: str | None = None
         self.pp_status_label: QLabel | None = None
         self.pp_profile_combo: QComboBox | None = None
+        self.pp_configure_app_button: QPushButton | None = None
         self.pp_profiles_table: QTableWidget | None = None
         self.pp_environments_table: QTableWidget | None = None
         self.pp_resource_environment_combo: QComboBox | None = None
@@ -541,8 +466,8 @@ class MainWindow(QMainWindow):
         sidebar.setObjectName("sidebar")
         sidebar.setFixedWidth(248)
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(17, 22, 17, 18)
-        layout.setSpacing(8)
+        layout.setContentsMargins(13, 16, 13, 12)
+        layout.setSpacing(7)
 
         brand_row = QHBoxLayout()
         mark = QFrame()
@@ -566,47 +491,59 @@ class MainWindow(QMainWindow):
         brand_row.addLayout(brand_text)
         brand_row.addStretch(1)
         layout.addLayout(brand_row)
-        layout.addSpacing(26)
+
+        navigation_scroll = QScrollArea()
+        navigation_scroll.setObjectName("sidebarNavigationScroll")
+        navigation_scroll.setWidgetResizable(True)
+        navigation_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        navigation_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        navigation_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        navigation_content = QWidget()
+        navigation_layout = QVBoxLayout(navigation_content)
+        navigation_layout.setContentsMargins(2, 8, 3, 8)
+        navigation_layout.setSpacing(4)
 
         section = QLabel("YOUR SESSION")
         section.setObjectName("eyebrow")
-        layout.addWidget(section)
+        navigation_layout.addWidget(section)
 
         workflow_keys = {"azure", "azure_resources", "power_platform", "power_platform_resources", "executions", "reports"}
         workflow_heading_added = False
         for label, key in self.NAV_ITEMS:
             if key in workflow_keys and not workflow_heading_added:
-                layout.addSpacing(14)
+                navigation_layout.addSpacing(9)
                 workflow_heading = QLabel("CLOUD WORKFLOWS")
                 workflow_heading.setObjectName("eyebrow")
-                layout.addWidget(workflow_heading)
+                navigation_layout.addWidget(workflow_heading)
                 workflow_heading_added = True
             button = QPushButton(f"   {label}")
             button.setObjectName("navButton")
             button.setCheckable(True)
-            button.setMinimumHeight(40)
+            button.setMinimumHeight(36)
             button.clicked.connect(lambda checked=False, page=key: self._select_page(page))
             self.nav_buttons[key] = button
-            layout.addWidget(button)
-
-        layout.addStretch(1)
+            navigation_layout.addWidget(button)
+        navigation_layout.addStretch(1)
+        navigation_scroll.setWidget(navigation_content)
+        layout.addWidget(navigation_scroll, 1)
 
         floating_button = QPushButton("＋  Open floating assistant")
         floating_button.setObjectName("secondaryButton")
+        floating_button.setMinimumHeight(36)
         floating_button.clicked.connect(self._show_floating)
         layout.addWidget(floating_button)
 
         account = QFrame()
         account.setObjectName("accountPanel")
         account_layout = QVBoxLayout(account)
-        account_layout.setContentsMargins(12, 12, 12, 12)
-        account_layout.setSpacing(7)
+        account_layout.setContentsMargins(10, 9, 10, 9)
+        account_layout.setSpacing(5)
         account_title = QLabel("LOCAL SESSION")
         account_title.setObjectName("eyebrow")
         account_layout.addWidget(account_title)
         account_layout.addWidget(self._status_row("Copilot CLI", "Signed in", "good"))
-        account_layout.addWidget(self._status_row("SKYFALL AI runtime", "Connecting...", "pending"))
-        account_layout.addWidget(self._status_row("MCP Tools", "Starting...", "pending"))
+        account_layout.addWidget(self._status_row("AI runtime", "Connecting...", "pending"))
+        account_layout.addWidget(self._status_row("MCP tools", "Starting...", "pending"))
         layout.addWidget(account)
         return sidebar
 
@@ -680,7 +617,7 @@ class MainWindow(QMainWindow):
         note = QLabel(
             "SKYFALL retains separate conversations locally and can resume Copilot sessions. "
             "SKYFALL Core and Workspace MCP expose read-only status, capability discovery and metadata-only "
-            "workspace search. Azure subscription discovery and Power Platform PAC profile/environment "
+            "workspace search. Azure subscription discovery and Power Platform OAuth profile/environment "
             "discovery are now available in read-only mode. Resource modification and script execution remain disabled."
         )
         note.setObjectName("muted")
@@ -716,7 +653,7 @@ class MainWindow(QMainWindow):
         history_layout.addWidget(self.new_chat_button)
 
         self.delete_chat_button = QPushButton("Delete selected conversation")
-        self.delete_chat_button.setObjectName("secondaryButton")
+        self.delete_chat_button.setObjectName("dangerButton")
         self.delete_chat_button.setToolTip("Remove this conversation and its local transcript")
         self.delete_chat_button.clicked.connect(self._delete_selected_conversation)
         history_layout.addWidget(self.delete_chat_button)
@@ -758,6 +695,7 @@ class MainWindow(QMainWindow):
         self.chat_scroll.setWidgetResizable(True)
         self.chat_scroll.setObjectName("chatScroll")
         messages_host = QWidget()
+        messages_host.setObjectName("chatMessageCanvas")
         self.chat_layout = QVBoxLayout(messages_host)
         self.chat_layout.setContentsMargins(4, 8, 4, 8)
         self.chat_layout.setSpacing(12)
@@ -1284,8 +1222,8 @@ class MainWindow(QMainWindow):
         self.azure_profile_combo = QComboBox()
         self.azure_profile_combo.setMinimumHeight(36)
         self.azure_profile_combo.setStyleSheet(
-            "background:#101A2D;color:#E8ECF5;border:1px solid #30425E;"
-            "border-radius:8px;padding:7px;"
+            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+            "border-radius:8px;padding:7px 10px;"
         )
         self.azure_profile_combo.currentIndexChanged.connect(self._on_azure_profile_changed)
         profile_row.addWidget(self.azure_profile_combo, 1)
@@ -1431,8 +1369,8 @@ class MainWindow(QMainWindow):
         title.setObjectName("pageTitle")
         layout.addWidget(title)
         intro = QLabel(
-            "Create named Power Platform sign-in profiles, authenticate with Microsoft, and automatically discover accessible environments. "
-            "PAC CLI profile selection is global to the local installation, so SKYFALL asks before switching profiles."
+            "Sign in with Microsoft OAuth, keep account profiles private to SKYFALL, and discover environments automatically. "
+            "Profile selection is local to this app and never changes another terminal's account."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
@@ -1448,27 +1386,35 @@ class MainWindow(QMainWindow):
         self.pp_profile_combo = QComboBox()
         self.pp_profile_combo.setMinimumHeight(36)
         self.pp_profile_combo.setStyleSheet(
-            "background:#101A2D;color:#E8ECF5;border:1px solid #30425E;"
-            "border-radius:8px;padding:7px;"
+            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
+            "border-radius:8px;padding:7px 10px;"
         )
         self.pp_profile_combo.currentIndexChanged.connect(self._on_powerplatform_profile_changed)
         buttons.addWidget(self.pp_profile_combo, 1)
-        manage_profiles = QPushButton("Manage profiles")
-        manage_profiles.setObjectName("primaryButton")
-        manage_profiles.clicked.connect(self._manage_powerplatform_profiles)
-        buttons.addWidget(manage_profiles)
+        add_account = QPushButton("Add Microsoft account")
+        add_account.setObjectName("primaryButton")
+        add_account.clicked.connect(self._manage_powerplatform_profiles)
+        buttons.addWidget(add_account)
+        self.pp_configure_app_button = QPushButton("Configure app ID")
+        self.pp_configure_app_button.setObjectName("secondaryButton")
+        self.pp_configure_app_button.clicked.connect(self._configure_powerplatform_app)
+        buttons.addWidget(self.pp_configure_app_button)
+        remove_account = QPushButton("Remove account")
+        remove_account.setObjectName("dangerButton")
+        remove_account.clicked.connect(self._remove_powerplatform_profile)
+        buttons.addWidget(remove_account)
         buttons.addStretch(1)
         panel_layout.addLayout(buttons)
-        self.pp_status_label = QLabel("SKYFALL will check PAC CLI profiles automatically.")
+        self.pp_status_label = QLabel("Configure your Microsoft Entra app once, then add accounts. Saved accounts are selected from the dropdown.")
         self.pp_status_label.setObjectName("muted")
         self.pp_status_label.setWordWrap(True)
         panel_layout.addWidget(self.pp_status_label)
         layout.addWidget(panel)
 
-        layout.addWidget(self._section_label("REGISTERED PAC CLI PROFILES"))
+        layout.addWidget(self._section_label("SAVED MICROSOFT ACCOUNTS"))
         self.pp_profiles_table = QTableWidget(0, 6)
         self.pp_profiles_table.setHorizontalHeaderLabels(
-            ["Index", "Active", "Kind", "Profile", "Environment URL", "User"]
+            ["Authentication", "Selected", "Tenant ID", "Profile", "Last Environment ID", "User"]
         )
         self._style_data_table(self.pp_profiles_table)
         self.pp_profiles_table.setMaximumHeight(210)
@@ -1483,10 +1429,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.pp_environments_table, 1)
 
         note = QLabel(
-            "Manage profiles → Add profile asks for a profile name and optional environment, then starts Microsoft's interactive sign-in. "
-            "The tenant ID is discovered from the Microsoft account selected in the sign-in flow; PAC CLI delegated sign-in does not accept a tenant ID parameter. "
-            "Environment discovery runs automatically after login and may require Power Platform administrative permissions. "
-            "Switching PAC CLI profiles affects the local PAC CLI installation globally and always requires confirmation."
+            "One-time setup: register a desktop/public client app in Microsoft Entra, enable public client flows, add delegated Power Platform environment read and Dynamics CRM user_impersonation permissions, then enter its Application (client) ID. "
+            "Account tokens are cached per profile using OS-protected MSAL storage. Environment discovery runs at sign-in and app startup. "
+            "Flow inventory uses Dataverse metadata columns only; definitions, connections and secrets are excluded."
         )
         note.setObjectName("muted")
         note.setWordWrap(True)
@@ -1515,7 +1460,7 @@ class MainWindow(QMainWindow):
         title_column.addWidget(title)
         intro = QLabel(
             "Inventory cloud flows in a selected environment, preview key metadata and create a polished Excel workbook. "
-            "SKYFALL uses the active PAC CLI profile and performs read-only discovery."
+            "SKYFALL uses your selected Microsoft account and the read-only Dataverse Web API."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
@@ -1533,7 +1478,7 @@ class MainWindow(QMainWindow):
         self.pp_flow_metric_values = {}
         metric_specs = [
             ("ENVIRONMENT", "Not selected", "Choose an accessible environment", "environment"),
-            ("CLOUD FLOWS", "—", "Flows visible to the active profile", "flows"),
+            ("CLOUD FLOWS", "—", "Flows visible to the selected account", "flows"),
             ("ENABLED", "—", "Currently enabled flows", "enabled"),
             ("REPORT", "Not generated", "A dated Excel workbook", "report"),
         ]
@@ -1581,9 +1526,10 @@ class MainWindow(QMainWindow):
         self.pp_resource_environment_combo.setMinimumHeight(42)
         self.pp_resource_environment_combo.setPlaceholderText("Select a discovered environment")
         self.pp_resource_environment_combo.setStyleSheet(
-            "background:#101A2D;color:#E8ECF5;border:1px solid #30425E;"
+            "background:#1B2531;color:#E6EBF1;border:1px solid #3A4859;"
             "border-radius:9px;padding:8px 11px;font-size:13px;"
         )
+        self.pp_resource_environment_combo.currentIndexChanged.connect(self._on_powerplatform_environment_changed)
         selection_row.addWidget(self.pp_resource_environment_combo, 1)
         self.pp_flow_inventory_button = QPushButton("Generate Excel workbook")
         self.pp_flow_inventory_button.setObjectName("primaryButton")
@@ -1659,9 +1605,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(preview_panel)
 
         note = QLabel(
-            "Coverage is limited to cloud flows visible to the active PAC CLI profile in the selected environment. "
+            "Coverage is limited to cloud flows visible to the selected Microsoft account in the selected environment. "
             "Flow definitions, action payloads, connection details and secrets are never exported. "
-            "Microsoft currently documents the PAC CLI cloud-flow listing command as Preview."
+            "The documented Dataverse code path covers solution cloud flows; My Flows is not currently supported. "
+            "A Dataverse environment permission and the app registration consent are required."
         )
         note.setObjectName("muted")
         note.setWordWrap(True)
@@ -1691,7 +1638,7 @@ class MainWindow(QMainWindow):
             self.pp_flow_inventory_button.setEnabled(False)
         if self.pp_flow_status_label:
             self.pp_flow_status_label.setText(
-                f"Collecting flow metadata from {selected.get('name') or 'the selected environment'} using the active Power Platform account..."
+                f"Collecting flow metadata from {selected.get('name') or 'the selected environment'} using the selected Microsoft account..."
             )
         if self.pp_flow_empty_state:
             self.pp_flow_empty_title.setText("Inventory in progress")
@@ -1710,6 +1657,8 @@ class MainWindow(QMainWindow):
             params={
                 "environment_id": str(selected["environment_id"]),
                 "environment_name": str(selected.get("name") or "Selected Environment"),
+                "environment_url": str(selected.get("environment_url") or ""),
+                "profile_id": str(self.pp_profile_combo.currentData() or "") if self.pp_profile_combo else "",
             },
         )
 
@@ -1850,15 +1799,15 @@ class MainWindow(QMainWindow):
                 self.azure_status_label.setText("Opening Microsoft sign-in for this isolated Azure profile. Complete sign-in in the browser; SKYFALL will discover tenants and subscriptions automatically.")
         elif action == "powerplatform_login":
             if self.pp_status_label:
-                self.pp_status_label.setText("Starting PAC CLI interactive Microsoft sign-in. Complete the sign-in page; SKYFALL will discover the profile and environments automatically.")
+                self.pp_status_label.setText("Opening Microsoft sign-in for this SKYFALL account. Environments will refresh automatically after sign-in.")
         elif action == "powerplatform_select":
             if self.pp_status_label:
-                self.pp_status_label.setText("Selecting the confirmed PAC CLI profile and discovering its environments...")
+                self.pp_status_label.setText("Switching the selected SKYFALL account and refreshing its environments...")
         elif action == "powerplatform_flow_inventory":
             if self.pp_flow_status_label:
                 self.pp_flow_status_label.setText("Retrieving cloud-flow metadata and preparing the Excel report...")
         elif self.pp_status_label:
-            self.pp_status_label.setText("Discovering PAC CLI profiles and environment context...")
+            self.pp_status_label.setText("Refreshing saved Microsoft accounts and environment context...")
         worker.start()
 
     def _refresh_azure_discovery(self) -> None:
@@ -1868,91 +1817,83 @@ class MainWindow(QMainWindow):
     def _refresh_powerplatform_profiles(self) -> None:
         self._start_microsoft_worker("powerplatform_profiles")
 
-    def _manage_powerplatform_profiles(self) -> None:
-        discovery = PowerPlatformDiscovery()
-        result = discovery.list_auth_profiles()
-        profiles = result.get("profiles", []) if result.get("success") else []
-        entries = []
-        for profile in profiles:
-            active = "ACTIVE · " if profile.get("active") else ""
-            label = profile.get("label") or profile.get("environment_url") or "Unnamed PAC profile"
-            user = profile.get("user") or "user not parsed"
-            entries.append((f"{active}[{profile.get('index')}] {label} · {user}", str(profile.get("index"))))
-        dialog = ProfileManagerDialog("Manage Power Platform profiles", entries, "Use selected", self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        if dialog.action == "add":
-            self._create_powerplatform_profile()
-        elif dialog.action == "primary":
-            try:
-                index = int(dialog.selected_value)
-            except (TypeError, ValueError):
-                QMessageBox.warning(self, "Invalid PAC profile", "The selected PAC CLI profile index is invalid.")
-                return
-            active = next((int(p["index"]) for p in profiles if p.get("active")), None)
-            if index == active:
-                self._refresh_powerplatform_profiles()
-                return
-            answer = QMessageBox.question(
-                self,
-                "Switch PAC CLI profile?",
-                "PAC CLI profile selection is global to the local PAC CLI installation and can affect other terminals.\n\n"
-                "Switch to the selected profile and discover its environments?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if answer == QMessageBox.StandardButton.Yes:
-                self._start_microsoft_worker("powerplatform_select", params={"index": index})
-
-    def _create_powerplatform_profile(self) -> None:
-        dialog = PowerPlatformProfileCreateDialog(self)
-        if dialog.exec() != QDialog.DialogCode.Accepted:
+    def _remove_powerplatform_profile(self) -> None:
+        profile_id = str(self.pp_profile_combo.currentData() or "") if self.pp_profile_combo else ""
+        profile = self.powerplatform_account_store.get_profile(profile_id) if profile_id else None
+        if not profile:
+            QMessageBox.information(self, "No account selected", "Select a saved Microsoft account to remove.")
             return
         answer = QMessageBox.question(
             self,
-            "Continue to Microsoft sign-in?",
-            "PAC CLI profile creation may make the new profile globally active for the local PAC CLI installation, "
-            "which can affect other terminals and projects. SKYFALL will not switch profiles silently.\n\n"
-            "Continue to the Microsoft sign-in page?",
+            "Remove Microsoft account?",
+            f"Remove {profile.get('name') or 'this account'} from SKYFALL and delete its local encrypted token cache?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        self.powerplatform_account_store.remove_profile(profile_id)
+        self._refresh_powerplatform_profiles()
+
+    def _configure_powerplatform_app(self) -> None:
+        current = self.powerplatform_account_store.get_client_id()
+        client_id, accepted = QInputDialog.getText(
+            self,
+            "Configure Microsoft Entra app",
+            "Application (client) ID for your desktop/public client app:",
+            QLineEdit.EchoMode.Normal,
+            current,
+        )
+        if not accepted:
+            return
+        try:
+            self.powerplatform_account_store.set_client_id(client_id)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Invalid application ID", str(exc))
+            return
+        if self.pp_status_label:
+            self.pp_status_label.setText("Microsoft app configured. Add an account to sign in and discover environments.")
+        self._refresh_powerplatform_profiles()
+
+    def _manage_powerplatform_profiles(self) -> None:
+        if not self.powerplatform_account_store.get_client_id():
+            self._configure_powerplatform_app()
+            if not self.powerplatform_account_store.get_client_id():
+                return
+        profile_name, accepted = QInputDialog.getText(
+            self, "Add Microsoft account", "Name this SKYFALL account profile:"
+        )
+        if not accepted or not profile_name.strip():
+            return
+        tenant, accepted = QInputDialog.getText(
+            self,
+            "Choose Microsoft tenant",
+            "Tenant ID or verified domain (leave blank for work and school accounts):",
+        )
+        if not accepted:
+            return
         self._start_microsoft_worker(
             "powerplatform_login",
-            params={"profile_name": dialog.profile_name, "environment": dialog.environment},
+            params={"profile_name": profile_name.strip(), "tenant": tenant.strip() or "organizations"},
         )
 
     def _on_powerplatform_profile_changed(self, _index: int) -> None:
         if self.pp_profile_combo is None:
             return
-        value = self.pp_profile_combo.currentData()
-        if value is None:
+        profile_id = str(self.pp_profile_combo.currentData() or "")
+        if not profile_id or profile_id == self.powerplatform_account_store.get_active_profile_id():
             return
-        try:
-            index = int(value)
-        except (TypeError, ValueError):
+        self._start_microsoft_worker("powerplatform_select", params={"profile_id": profile_id})
+
+    def _on_powerplatform_environment_changed(self, _index: int) -> None:
+        if self.pp_resource_environment_combo is None:
             return
-        active_index = getattr(self, "_pp_active_profile_index", None)
-        try:
-            active_index = int(active_index) if active_index is not None else None
-        except (TypeError, ValueError):
-            active_index = None
-        if active_index is None or index == active_index:
-            return
-        answer = QMessageBox.question(
-            self,
-            "Switch PAC CLI profile?",
-            "PAC CLI profile selection is global to the local PAC CLI installation and can affect other terminals.\n\n"
-            "Switch to this profile?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if answer == QMessageBox.StandardButton.Yes:
-            self._start_microsoft_worker("powerplatform_select", params={"index": index})
-        else:
-            self._refresh_powerplatform_profiles()
+        selected = self.pp_resource_environment_combo.currentData()
+        profile_id = self.powerplatform_account_store.get_active_profile_id()
+        if profile_id and isinstance(selected, dict) and selected.get("environment_id"):
+            self.powerplatform_account_store.set_selected_environment(
+                profile_id, str(selected["environment_id"])
+            )
 
     def _on_microsoft_discovery_completed(self, action: str, payload: object) -> None:
         data = payload if isinstance(payload, dict) else {}
@@ -2131,7 +2072,7 @@ class MainWindow(QMainWindow):
                 if not rows and self.pp_flow_empty_state:
                     self.pp_flow_empty_title.setText("No cloud flows were returned")
                     self.pp_flow_empty_message.setText(
-                        "The inventory completed, but the active PAC CLI profile returned no visible cloud flows for this environment."
+                        "The inventory completed, but the selected Microsoft account returned no visible cloud flows for this environment."
                     )
                     self.pp_flow_empty_state.show()
             else:
@@ -2153,51 +2094,46 @@ class MainWindow(QMainWindow):
         elif action.startswith("powerplatform"):
             profiles = data.get("profiles", {})
             auth = data.get("auth", {})
+            active = auth.get("active_profile") or {}
             if auth.get("authenticated"):
                 self._pending_auth_refresh_targets.discard("powerplatform")
                 if not self._pending_auth_refresh_targets:
                     self._auth_refresh_queue.clear()
                     self._auth_refresh_attempts = 0
             if self.pp_status_label:
-                active = auth.get("active_profile") or {}
-                if auth.get("authenticated"):
+                if not auth.get("client_id_configured"):
+                    self.pp_status_label.setText("Configure the Microsoft Entra application client ID to connect accounts.")
+                elif active:
                     self.pp_status_label.setText(
-                        f"Active PAC profile: #{active.get('index')} · {active.get('label') or active.get('environment_url') or 'Unnamed'} · "
-                        f"User: {active.get('user') or 'Not parsed'} · Registered profiles: {auth.get('profile_count', 0)}"
+                        f"Selected account: {active.get('name') or 'Microsoft account'} ? "
+                        f"{active.get('username') or 'identity unavailable'} ? "
+                        f"{auth.get('profile_count', 0)} saved profile(s)"
                     )
                 else:
-                    self.pp_status_label.setText(
-                        "No active Power Platform profile. Open Manage profiles → Add profile to start Microsoft sign-in."
-                    )
+                    self.pp_status_label.setText("No account selected. Add a Microsoft account to discover environments.")
             if self.pp_profile_combo:
                 rows_for_combo = profiles.get("profiles", [])
-                active_profile = auth.get("active_profile") or {}
-                try:
-                    active_index = int(active_profile.get("index")) if active_profile.get("index") is not None else None
-                except (TypeError, ValueError):
-                    active_index = None
+                active_id = active.get("profile_id")
                 self.pp_profile_combo.blockSignals(True)
                 self.pp_profile_combo.clear()
                 for profile in rows_for_combo:
-                    prefix = "● " if profile.get("active") else ""
-                    label = profile.get("label") or profile.get("environment_url") or f"PAC profile {profile.get('index')}"
-                    user = profile.get("user") or "unknown user"
-                    try:
-                        profile_index = int(profile.get("index"))
-                    except (TypeError, ValueError):
-                        continue
-                    self.pp_profile_combo.addItem(f"{prefix}{label} · {user}", profile_index)
-                if active_index is not None:
-                    active_combo_index = self.pp_profile_combo.findData(active_index)
-                    if active_combo_index >= 0:
-                        self.pp_profile_combo.setCurrentIndex(active_combo_index)
+                    label = profile.get("name") or "Microsoft account"
+                    user = profile.get("username") or "unknown account"
+                    self.pp_profile_combo.addItem(f"{label} ? {user}", profile.get("profile_id"))
+                if active_id:
+                    index = self.pp_profile_combo.findData(active_id)
+                    if index >= 0:
+                        self.pp_profile_combo.setCurrentIndex(index)
                 self.pp_profile_combo.blockSignals(False)
-                self._pp_active_profile_index = active_index
+                self._pp_active_profile_id = active_id
             if self.pp_profiles_table:
                 rows = profiles.get("profiles", [])
                 self.pp_profiles_table.setRowCount(len(rows))
                 for row_index, item in enumerate(rows):
-                    values = [item.get("index", ""), "Yes" if item.get("active") else "", item.get("kind", ""), item.get("label", ""), item.get("environment_url", ""), item.get("user", "")]
+                    values = [
+                        "OAuth / MSAL", "Yes" if item.get("active") else "", item.get("tenant_id", ""),
+                        item.get("name", ""), item.get("selected_environment_id", ""), item.get("username", ""),
+                    ]
                     for column, value in enumerate(values):
                         self.pp_profiles_table.setItem(row_index, column, QTableWidgetItem(str(value)))
             if action in {"powerplatform_environments", "powerplatform_profiles", "powerplatform_login", "powerplatform_select"} and self.pp_environments_table:
@@ -2209,8 +2145,13 @@ class MainWindow(QMainWindow):
                     for column, value in enumerate(values):
                         self.pp_environments_table.setItem(row_index, column, QTableWidgetItem(str(value)))
                 if self.pp_resource_environment_combo is not None:
-                    previous_environment = self.pp_resource_environment_combo.currentData()
-                    previous_id = previous_environment.get("environment_id") if isinstance(previous_environment, dict) else None
+                    previous = self.pp_resource_environment_combo.currentData()
+                    previous_id = (
+                        previous.get("environment_id")
+                        if isinstance(previous, dict)
+                        and getattr(self, "_pp_environment_profile_id", None) == active.get("profile_id")
+                        else active.get("selected_environment_id")
+                    )
                     self.pp_resource_environment_combo.blockSignals(True)
                     self.pp_resource_environment_combo.clear()
                     for item in rows:
@@ -2220,9 +2161,14 @@ class MainWindow(QMainWindow):
                         environment_name = str(item.get("name") or environment_id)
                         environment_type = str(item.get("type") or "Environment")
                         self.pp_resource_environment_combo.addItem(
-                            f"{environment_name} · {environment_type}",
-                            {"environment_id": environment_id, "name": environment_name},
+                            f"{environment_name} ? {environment_type}",
+                            {
+                                "environment_id": environment_id,
+                                "name": environment_name,
+                                "environment_url": str(item.get("environment_url") or ""),
+                            },
                         )
+                    self.pp_resource_environment_combo.setCurrentIndex(-1)
                     if previous_id:
                         for combo_index in range(self.pp_resource_environment_combo.count()):
                             data_item = self.pp_resource_environment_combo.itemData(combo_index)
@@ -2230,56 +2176,34 @@ class MainWindow(QMainWindow):
                                 self.pp_resource_environment_combo.setCurrentIndex(combo_index)
                                 break
                     self.pp_resource_environment_combo.blockSignals(False)
+                    self._pp_environment_profile_id = active.get("profile_id")
                 if env_result.get("success"):
-                    tenant_ids = sorted({
-                        str(item.get("tenant_id", "")).strip()
-                        for item in rows if item.get("tenant_id")
-                    })
-                    summary = f"Environments discovered: {len(rows)}"
-                    if tenant_ids:
-                        summary += " · Tenant(s): " + ", ".join(tenant_ids)
-                    elif env_result.get("discovery_format") == "table_fallback":
-                        summary += " · Tenant and region metadata are not included in this PAC table output"
+                    summary = f"Environments discovered: {len(rows)} through the Power Platform API"
                     if self.pp_status_label:
-                        self.pp_status_label.setText(f"{self.pp_status_label.text()} · {summary}")
+                        self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {summary}")
                     if self.pp_flow_metric_values.get("environment"):
                         self.pp_flow_metric_values["environment"].setText(f"{len(rows)} available")
                     if self.pp_flow_status_label and rows:
-                        self.pp_flow_status_label.setText("Environments are ready. Select one to generate its flow inventory.")
+                        self.pp_flow_status_label.setText("Environments are ready. Your last selection is restored automatically.")
                     elif not rows and self.pp_flow_empty_state:
                         self.pp_flow_empty_title.setText("No environments were returned")
-                        self.pp_flow_empty_message.setText(
-                            "The active PAC CLI profile did not return any environments. Verify the selected account and its environment visibility."
-                        )
+                        self.pp_flow_empty_message.setText("This account did not return any environments. Check the account and its Power Platform access.")
                         self.pp_flow_empty_state.show()
                     if self.pp_flow_retry_environment_button:
                         self.pp_flow_retry_environment_button.setVisible(False)
-                    if env_result.get("notice") and self.pp_flow_status_label:
-                        self.pp_flow_status_label.setText(env_result["notice"] + " Select an environment to continue.")
                 else:
                     friendly_error = env_result.get("error", "Environment discovery could not be completed.")
                     if self.pp_status_label:
-                        self.pp_status_label.setText(f"{self.pp_status_label.text()} · {friendly_error}")
-                    if not auth.get("authenticated"):
-                        guidance = "Connect a Power Platform account from Manage profiles. SKYFALL will discover environments automatically after sign-in."
-                        if self.pp_flow_status_label:
-                            self.pp_flow_status_label.setText(guidance)
-                        if self.pp_flow_empty_state:
-                            self.pp_flow_empty_title.setText("Connect a Power Platform account")
-                            self.pp_flow_empty_message.setText(guidance)
-                            self.pp_flow_empty_state.show()
-                        if self.pp_flow_retry_environment_button:
-                            self.pp_flow_retry_environment_button.setVisible(False)
-                    else:
-                        if self.pp_flow_status_label:
-                            self.pp_flow_status_label.setText(friendly_error)
-                        if self.pp_flow_empty_state:
-                            self.pp_flow_empty_title.setText("Environment discovery needs attention")
-                            self.pp_flow_empty_message.setText(friendly_error)
-                            self.pp_flow_empty_state.show()
-                        if self.pp_flow_retry_environment_button:
-                            self.pp_flow_retry_environment_button.setVisible(True)
-
+                        self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {friendly_error}")
+                    guidance = friendly_error if auth.get("authenticated") else "Configure the Entra app and add a Microsoft account to discover environments."
+                    if self.pp_flow_status_label:
+                        self.pp_flow_status_label.setText(guidance)
+                    if self.pp_flow_empty_state:
+                        self.pp_flow_empty_title.setText("Power Platform connection needs attention")
+                        self.pp_flow_empty_message.setText(guidance)
+                        self.pp_flow_empty_state.show()
+                    if self.pp_flow_retry_environment_button:
+                        self.pp_flow_retry_environment_button.setVisible(bool(auth.get("authenticated")))
 
         expected_action = {
             "azure": {"azure", "azure_login"},
@@ -2354,7 +2278,7 @@ class MainWindow(QMainWindow):
             "SKYFALL stores its conversation index and visible chat history locally. "
             "This release enables read-only MCP Core and metadata-only workspace discovery. "
             "Azure and Power Platform account/environment discovery are available in read-only mode. "
-            "Azure Function App and Power Automate cloud-flow inventories with local Excel reporting are enabled. Resource modification and script execution remain disabled in v0.9.1."
+            "Power Platform uses SKYFALL-local Microsoft OAuth profiles and the Dataverse Web API. Azure Function App and Power Automate inventories are read-only and can generate local Excel reports. Cloud changes and script execution are disabled in v0.9.2."
         )
         intro.setObjectName("muted")
         intro.setWordWrap(True)
@@ -2366,7 +2290,7 @@ class MainWindow(QMainWindow):
         panel_layout.setContentsMargins(18, 18, 18, 18)
         panel_layout.setSpacing(12)
         panel_layout.addWidget(self._section_label("APPLICATION"))
-        panel_layout.addWidget(self._status_row("Version", "0.9.1", "good"))
+        panel_layout.addWidget(self._status_row("Version", "0.9.2", "good"))
         panel_layout.addWidget(self._status_row("Runtime", "Local desktop", "good"))
         panel_layout.addWidget(self._status_row("AI provider", "GitHub Copilot", "good"))
         panel_layout.addWidget(self._status_row("MCP integration", "Starting...", "pending"))
@@ -2726,6 +2650,7 @@ class MainWindow(QMainWindow):
         self.conversation_store.delete_conversation(conversation_id)
         if was_current:
             replacement = self.conversation_store.create_conversation()
+            self.conversation_store.set_active_conversation(replacement.id)
             self.current_conversation = replacement
             self._pending_conversation_id = replacement.id
             self._refresh_conversation_list(select_id=replacement.id)

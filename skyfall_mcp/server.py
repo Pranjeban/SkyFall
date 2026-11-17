@@ -14,6 +14,7 @@ from skyfall_mcp.tools.workspace import (
     search_workspace_files as _search_workspace_files,
 )
 from skyfall_mcp.tools.accounts import (
+    configure_powerplatform_app as _configure_powerplatform_app,
     get_azure_auth_status as _get_azure_auth_status,
     get_microsoft_auth_job_status as _get_microsoft_auth_job_status,
     get_powerplatform_auth_status as _get_powerplatform_auth_status,
@@ -43,9 +44,9 @@ logging.basicConfig(stream=sys.stderr, level=logging.WARNING, format="%(levelnam
 mcp = MCPServer(
     "SKYFALL Local Intelligence",
     instructions=(
-    "SKYFALL v0.9.1 MCP server. Exposes read-only core status/capability tools, "
+    "SKYFALL v0.9.2 MCP server. Exposes read-only core status/capability tools, "
         "metadata-only workspace discovery, Azure CLI account/subscription discovery, "
-    "Power Platform CLI profile/environment discovery, read-only Azure Function App and Power Automate cloud-flow inventory with local XLSX reporting, and explicit user-requested "
+        "Power Platform delegated OAuth account/environment discovery, read-only Azure Function App and Dataverse cloud-flow inventory with local XLSX reporting, and explicit user-requested "
     "interactive Microsoft sign-in jobs. Azure profiles are isolated by AZURE_CONFIG_DIR. "
     "Login tools may open a Microsoft sign-in page only when the user explicitly asks "
     "to connect or sign in. They do not create, update or delete cloud resources. "
@@ -128,20 +129,26 @@ def list_azure_tenants(profile_id: str = "all", refresh: bool = False) -> str:
 
 @mcp.tool(title="Browse Power Platform accounts")
 def list_powerplatform_auth_profiles() -> str:
-    """List existing PAC CLI profiles and identify the active profile without switching it."""
+    """List saved SKYFALL-local Microsoft OAuth account profiles."""
     return _list_powerplatform_auth_profiles()
 
 
 @mcp.tool(title="Check Power Platform connection")
 def get_powerplatform_auth_status() -> str:
-    """Report the active PAC CLI authentication profile without exposing tokens."""
+    """Report the selected SKYFALL Microsoft OAuth profile without exposing tokens."""
     return _get_powerplatform_auth_status()
 
 
 @mcp.tool(title="View Power Platform environments")
 def list_powerplatform_environments() -> str:
-    """List environments visible to pac admin list for the active PAC CLI profile."""
+    """List environments available to the selected saved Microsoft account."""
     return _list_powerplatform_environments()
+
+
+@mcp.tool(title="Configure Power Platform app")
+def configure_powerplatform_app(client_id: str) -> str:
+    """Save the public client ID of a registered Microsoft Entra desktop app. Never provide a client secret."""
+    return _configure_powerplatform_app(client_id)
 
 
 @mcp.tool(title="Connect an Azure account")
@@ -153,13 +160,10 @@ def start_azure_login(profile_name: str = "", tenant_id: str = "", profile_id: s
 @mcp.tool(title="Connect a Power Platform account")
 def start_powerplatform_login(
     profile_name: str,
-    environment: str = "",
-    confirm_global_profile_activation: bool = False,
+    tenant: str = "organizations",
 ) -> str:
-    """Create a PAC CLI profile and start interactive sign-in only after the user explicitly confirms the possible global active-profile change. The tenant is selected by the signed-in account; environment is optional."""
-    return _start_powerplatform_login(
-        profile_name, environment, confirm_global_profile_activation
-    )
+    """Start browser sign-in and save a per-SKYFALL Microsoft OAuth account profile."""
+    return _start_powerplatform_login(profile_name, tenant)
 
 
 @mcp.tool(title="Discover Azure Function Apps")
@@ -191,8 +195,8 @@ def inventory_power_automate_flows(
 ) -> str:
     """Discover cloud-flow metadata in one explicitly selected environment.
 
-    Uses the active PAC CLI profile and creates a human-readable local Excel
-    report. Flow definitions, connection details and secrets are excluded.
+    Uses the selected Microsoft OAuth profile and creates a local Excel report.
+    Flow definitions, connection details and secrets are excluded.
     """
     return _inventory_power_automate_flows(environment_id, environment_name, generate_excel)
 

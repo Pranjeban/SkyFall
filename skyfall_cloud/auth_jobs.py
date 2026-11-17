@@ -1,7 +1,8 @@
 """Background Microsoft sign-in jobs used by SKYFALL's conversational tools.
 
 Only non-secret status and discovered account/environment metadata are retained.
-Credential caches remain owned by Azure CLI and PAC CLI.
+Azure credentials remain owned by Azure CLI. Power Platform OAuth caches are
+stored per SKYFALL account using OS-protected MSAL Extensions persistence.
 """
 
 from __future__ import annotations

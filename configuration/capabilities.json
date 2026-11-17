@@ -3,7 +3,7 @@
   "server": {
     "id": "skyfall_core",
     "name": "SKYFALL Local Intelligence",
-    "version": "0.9.1",
+    "version": "0.9.2",
     "transport": "stdio"
   },
   "capabilities": [
@@ -305,7 +305,7 @@
       "name": "Browse Power Platform accounts",
       "tool_name": "list_powerplatform_auth_profiles",
       "category": "power_platform",
-      "description": "Lists existing PAC CLI authentication profiles and identifies the active profile without switching profiles.",
+      "description": "Lists SKYFALL-local Microsoft OAuth account profiles without revealing credential material.",
       "risk": "read_only",
       "status": "enabled",
       "requires_approval": false,
@@ -316,8 +316,8 @@
         "required": []
       },
       "limitations": [
-        "PAC CLI output is a human-readable table and parsing is best-effort.",
-        "Does not create, delete, rename or select a PAC CLI profile."
+        "Account profiles are stored locally in SKYFALL.",
+        "Tokens are kept in per-profile OS-protected MSAL caches."
       ]
     },
     {
@@ -325,7 +325,7 @@
       "name": "Check Power Platform connection",
       "tool_name": "get_powerplatform_auth_status",
       "category": "power_platform",
-      "description": "Reports the currently active PAC CLI authentication profile and whether one is available.",
+      "description": "Reports the selected SKYFALL Microsoft OAuth account profile and whether a client app is configured.",
       "risk": "read_only",
       "status": "enabled",
       "requires_approval": false,
@@ -336,8 +336,8 @@
         "required": []
       },
       "limitations": [
-        "Reports the currently active PAC CLI profile only.",
-        "Does not switch to another profile or return access tokens."
+        "Reports only the selected SKYFALL profile.",
+        "Never returns access or refresh tokens."
       ]
     },
     {
@@ -345,7 +345,7 @@
       "name": "View Power Platform environments",
       "tool_name": "list_powerplatform_environments",
       "category": "power_platform",
-      "description": "Uses pac admin list --json to discover environments visible to the currently active PAC CLI profile.",
+      "description": "Uses the Microsoft Power Platform REST API to list environments for the selected saved OAuth profile.",
       "risk": "read_only",
       "status": "enabled",
       "requires_approval": false,
@@ -356,9 +356,8 @@
         "required": []
       },
       "limitations": [
-        "Uses the currently active PAC CLI profile only.",
-        "Tenant-wide discovery may require Power Platform administrative permissions.",
-        "Does not switch profiles or modify environments."
+        "Environment visibility depends on the signed-in account and app consent.",
+        "Requires a configured Entra public client app."
       ]
     },
     {
@@ -401,7 +400,7 @@
       "name": "Connect a Power Platform account",
       "tool_name": "start_powerplatform_login",
       "category": "authentication",
-      "description": "After explicit user acknowledgement that PAC CLI profile creation may change the globally active profile for the local PAC CLI installation, creates a named profile and starts interactive Microsoft sign-in. The delegated tenant is resolved from the Microsoft account chosen in the browser.",
+      "description": "After an explicit sign-in request, starts Microsoft browser sign-in and stores a named SKYFALL-local OAuth profile.",
       "risk": "interactive_authentication",
       "status": "enabled",
       "requires_approval": true,
@@ -411,16 +410,11 @@
         "properties": {
           "profile_name": {
             "type": "string",
-            "description": "Required profile display name, 1 to 30 characters."
+            "description": "Name for the saved SKYFALL account profile."
           },
-          "environment": {
+          "tenant": {
             "type": "string",
-            "description": "Optional environment name, URL or ID."
-          },
-          "confirm_global_profile_activation": {
-            "type": "boolean",
-            "description": "Must be true only after the user explicitly confirms the warning that this PAC profile may become globally active for the local PAC CLI installation.",
-            "default": false
+            "description": "Optional tenant ID or domain; defaults to work and school accounts."
           }
         },
         "required": [
@@ -428,11 +422,8 @@
         ]
       },
       "limitations": [
-        "Call only when the user explicitly asks to sign in, connect, or add a Power Platform account.",
-        "Before calling with confirmation=true, explain the possible global active-profile side effect and obtain a clear yes from the user.",
-        "PAC CLI delegated sign-in derives the tenant from the signed-in user; the standard user flow does not accept a tenant argument.",
-        "Does not create, update or delete Power Platform resources.",
-        "The job runs asynchronously; use get_microsoft_auth_job_status after sign-in."
+        "Requires a configured Microsoft Entra public client app.",
+        "Does not modify cloud resources."
       ]
     },
     {
@@ -508,7 +499,7 @@
       "name": "Generate Power Automate flow inventory",
       "tool_name": "inventory_power_automate_flows",
       "category": "power_platform_resources",
-      "description": "Discover cloud-flow metadata in one explicitly selected Power Platform environment and create a formatted Excel report. Uses the active PAC CLI profile and the signed-in user permissions.",
+      "description": "Discovers cloud-flow metadata in one environment through the Dataverse Web API and optionally creates a formatted Excel report.",
       "risk": "read_only",
       "status": "enabled",
       "requires_approval": false,
@@ -535,11 +526,35 @@
         ]
       },
       "limitations": [
-        "Uses the currently active PAC CLI profile only; SKYFALL does not silently switch PAC CLI profiles.",
-        "Results include cloud flows visible to the signed-in user in the selected environment; environment permissions determine coverage.",
-        "The PAC CLI list-cloud-flows command is documented by Microsoft as Preview.",
-        "Flow definitions, action payloads, connection details, credentials and secrets are not read or exported.",
-        "The operation does not create, update or delete cloud resources; it writes only a local report."
+        "Uses the selected Microsoft OAuth profile and the account permissions.",
+        "Reads only allow-listed workflow metadata; no definitions or secrets.",
+        "Requires Dataverse delegated permission and environment access."
+      ]
+    },
+    {
+      "id": "powerplatform.configure_app",
+      "name": "Configure Power Platform app",
+      "tool_name": "configure_powerplatform_app",
+      "category": "power_platform",
+      "description": "Stores the public client ID for a Microsoft Entra desktop app used by SKYFALL delegated OAuth.",
+      "risk": "low",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "description": "Application (client) ID GUID only. Never enter a client secret."
+          }
+        },
+        "required": [
+          "client_id"
+        ]
+      },
+      "limitations": [
+        "Stores a public app identifier only; no client secret or token is stored."
       ]
     }
   ]

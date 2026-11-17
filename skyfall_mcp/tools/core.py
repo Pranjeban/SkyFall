@@ -1,4 +1,4 @@
-"""SKYFALL core MCP tools for v0.9.1."""
+"""SKYFALL core MCP tools for v0.9.2."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 from skyfall_mcp.registry import CapabilityRegistry
 
 
-APP_VERSION = "0.9.1"
+APP_VERSION = "0.9.2"
 
 
 def _registry() -> CapabilityRegistry:

@@ -1,35 +1,24 @@
-"""Read-only Power Automate cloud-flow inventory and local XLSX reporting.
-
-Flow discovery uses the documented `pac power-automate list-cloud-flows`
-Power Platform CLI command (currently documented as Preview). The command
-runs against the currently active PAC CLI profile and an explicit environment
-ID. SKYFALL never switches the active PAC profile behind the user's back.
-Only allow-listed metadata fields are exported; definitions, connections,
-credentials and action payloads are intentionally excluded.
-"""
+"""Read-only Dataverse cloud-flow inventory and local XLSX reporting."""
 
 from __future__ import annotations
 
 import json
 import os
 import re
-import subprocess
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
+
+import httpx
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from .command_runner import CommandResult, run_cli
-from .powerplatform import PowerPlatformDiscovery, _decode_json_output
+from .powerplatform_accounts import PowerPlatformApi
 from .reporting import build_report_path, safe_excel_text
-
-
-Runner = Callable[..., CommandResult]
 
 
 class PowerPlatformInventoryError(RuntimeError):
@@ -80,7 +69,7 @@ def _first_scalar(item: Mapping[str, Any], paths: tuple[str, ...], *, limit: int
 
 
 def _extract_flow_rows(payload: Any) -> list[dict[str, Any]]:
-    """Extract records from known PAC CLI JSON response shapes."""
+    """Extract safe rows from Dataverse workflow metadata response shapes."""
     records: Any = None
     if isinstance(payload, list):
         records = payload
@@ -101,7 +90,7 @@ def _extract_flow_rows(payload: Any) -> list[dict[str, Any]]:
             raise PowerPlatformInventoryError(_as_safe_scalar(message, limit=700))
     if not isinstance(records, list):
         raise PowerPlatformInventoryError(
-            "PAC CLI returned an unrecognized cloud-flow JSON response. "
+            "Dataverse returned an unrecognized cloud-flow metadata response. "
             "No raw response content was added to SKYFALL memory or chat."
         )
 
@@ -227,18 +216,12 @@ def _status_bucket(value: str) -> str:
 class PowerPlatformFlowInventory:
     """Inventory cloud flows in an explicitly selected environment."""
 
-    def __init__(
-        self,
-        *,
-        project_root: str | Path | None = None,
-        runner: Runner = run_cli,
-        discovery: PowerPlatformDiscovery | None = None,
-    ) -> None:
+    def __init__(self, *, project_root: str | Path | None = None, api: PowerPlatformApi | None = None) -> None:
         self.project_root = Path(
             project_root or os.environ.get("SKYFALL_ROOT") or Path(__file__).resolve().parents[1]
         ).expanduser().resolve()
-        self.runner = runner
-        self.discovery = discovery or PowerPlatformDiscovery(runner=runner)
+        self.api = api or PowerPlatformApi()
+        self.accounts = self.api.store
 
     @staticmethod
     def _validate_environment_id(environment_id: str) -> str:
@@ -257,6 +240,8 @@ class PowerPlatformFlowInventory:
         *,
         environment_id: str,
         environment_name: str = "",
+        environment_url: str = "",
+        profile_id: str | None = None,
         generate_excel: bool = True,
     ) -> dict[str, Any]:
         if os.environ.get("SKYFALL_TEST_MODE") == "1":
@@ -270,55 +255,30 @@ class PowerPlatformFlowInventory:
             }
 
         resolved_environment_id = self._validate_environment_id(environment_id)
-        auth = self.discovery.get_auth_status()
-        if not auth.get("authenticated"):
+        selected_profile_id = profile_id or self.accounts.get_active_profile_id()
+        active_profile = self.accounts.get_profile(selected_profile_id) if selected_profile_id else None
+        if not active_profile:
             return {
                 "success": False,
                 "status": "not_authenticated",
-                "error": "No active PAC CLI profile is authenticated. Connect a Power Platform account first.",
+                "error": "No saved Microsoft account is selected. Add or select a Power Platform account first.",
                 "cloud_resources_modified": False,
                 "secrets_returned": False,
                 "flow_definitions_read": False,
             }
-        active_profile = auth.get("active_profile") or {}
-
-        try:
-            result = self.runner(
-                "pac",
-                [
-                    "power-automate",
-                    "list-cloud-flows",
-                    "--environment",
-                    resolved_environment_id,
-                    "--json",
-                ],
-                timeout_seconds=180,
+        if not environment_url:
+            discovered = self.api.list_environments(selected_profile_id)
+            match = next(
+                (item for item in discovered.get("environments", []) if str(item.get("environment_id")) == resolved_environment_id),
+                None,
             )
-        except FileNotFoundError as exc:
-            raise PowerPlatformInventoryError(
-                "Power Platform CLI (pac) was not found on PATH."
-            ) from exc
-        if not result.succeeded:
-            detail = (result.stderr or result.stdout or "").strip()
-            if result.timed_out:
-                message = "Power Automate flow inventory timed out. Retry with a smaller environment or check PAC CLI responsiveness."
-            elif "not logged" in detail.casefold() or "authentication" in detail.casefold() or "sign in" in detail.casefold():
-                message = "The active PAC CLI profile is no longer authenticated. Reconnect the Power Platform account and retry."
-            elif "403" in detail or "forbidden" in detail.casefold() or "unauthorized" in detail.casefold():
-                message = (
-                    "The active account does not have sufficient permission to enumerate flows in this environment. "
-                    "Verify the required Power Platform environment/admin access."
-                )
-            elif "404" in detail or "not found" in detail.casefold():
-                message = "The selected environment was not found or does not support this flow inventory endpoint. Verify its environment ID."
-            else:
-                message = "PAC CLI could not retrieve cloud flows. Check the selected environment, PAC CLI version and account permissions."
-            raise PowerPlatformInventoryError(message)
-
+            if match:
+                environment_url = str(match.get("environment_url") or "")
+                environment_name = environment_name or str(match.get("name") or "")
         try:
-            raw_payload = _decode_json_output("\n".join(part for part in (result.stdout, result.stderr) if part))
-            flows = _extract_flow_rows(raw_payload)
-        except (ValueError, PowerPlatformInventoryError) as exc:
+            raw_rows = self.api.list_flows(selected_profile_id, environment_url)
+            flows = _extract_flow_rows({"value": raw_rows})
+        except (ValueError, RuntimeError, httpx.HTTPError) as exc:
             raise PowerPlatformInventoryError(str(exc)) from exc
 
         for flow in flows:
@@ -351,9 +311,9 @@ class PowerPlatformFlowInventory:
                 "environment_id": resolved_environment_id,
             },
             "active_profile": {
-                "label": _as_safe_scalar(active_profile.get("label") or active_profile.get("environment_url") or "PAC CLI profile", limit=120),
-                "user": _as_safe_scalar(active_profile.get("user") or "", limit=160),
-                "index": active_profile.get("index"),
+                "label": _as_safe_scalar(active_profile.get("name") or "Microsoft account", limit=120),
+                "user": _as_safe_scalar(active_profile.get("username") or "", limit=160),
+                "profile_id": active_profile.get("profile_id"),
             },
             "flow_count": len(flows),
             "enabled_count": status_counts.get("Enabled", 0),
@@ -377,17 +337,13 @@ class PowerPlatformFlowInventory:
                 }
                 for item in flows[:10]
             ],
-            "data_source": "PAC CLI pac power-automate list-cloud-flows --json (Preview command)",
-            "coverage": "Cloud flows returned by the currently active PAC CLI profile for the explicitly selected environment; visibility depends on the signed-in user's permissions.",
+            "data_source": "Microsoft Dataverse Web API (workflow table; metadata columns only)",
+            "coverage": "Solution cloud flows visible to the selected Microsoft account in the explicitly selected Dataverse environment. My Flows is not supported by Microsoft's documented code path.",
             "flow_definitions_read": False,
             "connection_details_read": False,
             "secrets_returned": False,
             "cloud_resources_modified": False,
-            "note": (
-                "SKYFALL exports allow-listed cloud-flow metadata only. Flow definitions, action payloads, "
-                "connection details, credentials and secrets are not read or included. The PAC CLI command "
-                "is currently documented by Microsoft as Preview."
-            ),
+            "note": "SKYFALL requests allow-listed workflow metadata columns only. Flow definitions, action payloads, connection details, credentials and secrets are not read or included.",
         }
 
     def _write_excel_report(
@@ -415,8 +371,8 @@ class PowerPlatformFlowInventory:
         overview.append(["Generated (local)", generated_local.isoformat(timespec="seconds")])
         overview.append(["Environment", environment_name])
         overview.append(["Environment ID", environment_id])
-        overview.append(["PAC CLI profile", _as_safe_scalar(active_profile.get("label") or active_profile.get("environment_url") or "Active PAC profile", limit=160)])
-        overview.append(["Signed-in user", _as_safe_scalar(active_profile.get("user") or "Not supplied", limit=160)])
+        overview.append(["Microsoft account profile", _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)])
+        overview.append(["Signed-in user", _as_safe_scalar(active_profile.get("username") or "Not supplied", limit=160)])
         overview.append(["Total cloud flows discovered", len(flows)])
         overview.append(["Enabled flows", status_counts.get("Enabled", 0)])
         overview.append(["Disabled / suspended flows", status_counts.get("Disabled / Suspended", 0)])
@@ -425,8 +381,8 @@ class PowerPlatformFlowInventory:
         overview.append(["Cloud changes performed", "No — read-only inventory"])
         overview.append(["Flow definitions / action payloads read", "No"])
         overview.append(["Connection details / secrets read", "No"])
-        overview.append(["Data source", "PAC CLI: pac power-automate list-cloud-flows --json (Preview)"])
-        overview.append(["Coverage", "Flows visible to the active PAC CLI profile in the selected environment; permissions determine coverage."])
+        overview.append(["Data source", "Dataverse Web API: workflow metadata columns only"])
+        overview.append(["Coverage", "Cloud flows visible to the selected Microsoft account in the selected environment; permissions determine coverage."])
         overview.append([])
         overview.append(["Flows by status", "Count"])
         for label, count in sorted(status_counts.items(), key=lambda pair: pair[0].casefold()):
@@ -489,10 +445,9 @@ class PowerPlatformFlowInventory:
             [("Topic", "topic"), ("Details", "details")],
             [
                 {"topic": "Environment", "details": f"{environment_name} ({environment_id})"},
-                {"topic": "PAC CLI profile", "details": _as_safe_scalar(active_profile.get("label") or "Active PAC profile", limit=160)},
-                {"topic": "Inventory scope", "details": "Cloud flows visible to the active profile in the explicitly selected environment."},
+                {"topic": "Microsoft account profile", "details": _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)},
+                {"topic": "Inventory scope", "details": "Solution cloud flows visible to the selected Microsoft account in the explicitly selected environment. My Flows is not supported by Microsoft's documented code path."},
                 {"topic": "Permissions", "details": "The signed-in user's permissions determine which flow records can be listed."},
-                {"topic": "Preview status", "details": "Microsoft currently documents pac power-automate list-cloud-flows as a Preview command."},
                 {"topic": "Privacy", "details": "Flow definitions, action payloads, connection details, credentials and secrets are not read or exported."},
                 {"topic": "Changes", "details": "No cloud resources were created, changed or deleted."},
             ],

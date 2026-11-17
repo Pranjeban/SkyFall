@@ -12,9 +12,9 @@ class CapabilityRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = CapabilityRegistry.default()
 
-    def test_catalogue_contains_nineteen_enabled_tools(self) -> None:
+    def test_catalogue_contains_twenty_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 19)
+        self.assertEqual(len(capabilities), 20)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -32,6 +32,7 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "list_powerplatform_auth_profiles",
                 "get_powerplatform_auth_status",
                 "list_powerplatform_environments",
+                "configure_powerplatform_app",
                 "start_azure_login",
                 "start_powerplatform_login",
                 "get_microsoft_auth_job_status",
@@ -45,7 +46,7 @@ class CapabilityRegistryTests(unittest.TestCase):
             expected_risk = (
                 "interactive_authentication"
                 if capability.tool_name in {"start_azure_login", "start_powerplatform_login"}
-                else "read_only"
+                else "low" if capability.tool_name == "configure_powerplatform_app" else "read_only"
             )
             self.assertEqual(capability.risk, expected_risk)
             expected_approval = capability.tool_name == "start_powerplatform_login"
@@ -53,12 +54,11 @@ class CapabilityRegistryTests(unittest.TestCase):
             self.assertTrue(capability.execution_enabled)
         self.assertEqual(len(self.registry.list(category="authentication")), 3)
 
-    def test_powerplatform_login_schema_requires_explicit_side_effect_confirmation(self) -> None:
+    def test_powerplatform_login_schema_uses_local_profile_and_tenant(self) -> None:
         capability = self.registry.get("powerplatform.start_login")
-        confirmation = capability.input_schema["properties"]["confirm_global_profile_activation"]
-        self.assertEqual(confirmation["type"], "boolean")
-        self.assertFalse(confirmation["default"])
-        self.assertIn("explicitly confirms", confirmation["description"])
+        self.assertIn("profile_name", capability.input_schema["required"])
+        self.assertIn("tenant", capability.input_schema["properties"])
+        self.assertNotIn("confirm_global_profile_activation", capability.input_schema["properties"])
 
     def test_exact_capability_lookup(self) -> None:
         capability = self.registry.get("core.get_status")
@@ -73,7 +73,7 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(len(self.registry.list(category="workspace")), 4)
         self.assertEqual(len(self.registry.list(category="azure")), 4)
         self.assertEqual(len(self.registry.list(category="azure_resources")), 1)
-        self.assertEqual(len(self.registry.list(category="power_platform")), 3)
+        self.assertEqual(len(self.registry.list(category="power_platform")), 4)
         self.assertEqual(len(self.registry.list(category="power_platform_resources")), 1)
 
     def test_duplicate_ids_are_rejected(self) -> None:

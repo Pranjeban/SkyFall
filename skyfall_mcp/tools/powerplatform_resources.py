@@ -15,7 +15,7 @@ def inventory_power_automate_flows(
 ) -> str:
     """Discover cloud-flow metadata in one explicitly selected environment.
 
-    The operation uses the active PAC CLI profile, returns allow-listed metadata,
+    The operation uses the selected Microsoft OAuth profile and returns allow-listed metadata,
     and optionally writes a local Excel report. Flow definitions, action payloads,
     connection details, credentials and secrets are not retrieved.
     """
