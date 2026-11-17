@@ -1,0 +1,13 @@
+SKYFALL Desktop v0.1.1 - startup import fix
+
+Fixed:
+- QKeySequence is imported from PySide6.QtGui, not PySide6.QtCore.
+
+To apply:
+1. Close SKYFALL if it is running.
+2. Extract this ZIP directly into C:\Users\pkara\Documents\Skyfall\
+3. Allow overwrite of the included application files.
+4. Run: .\.venv\Scripts\Activate.ps1
+5. Run: python main.py
+
+No requirements, virtual environment, user data, or configuration files are included or overwritten.

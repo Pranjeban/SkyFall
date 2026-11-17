@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "server": {
+    "id": "skyfall_core",
+    "name": "SKYFALL Local Intelligence",
+    "version": "0.6.0",
+    "transport": "stdio"
+  },
+  "capabilities": [
+    {
+      "id": "core.get_status",
+      "name": "Get SKYFALL status",
+      "tool_name": "get_skyfall_status",
+      "category": "core",
+      "description": "Returns the local SKYFALL application and capability status. It does not inspect user files or connect to cloud services.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "limitations": [
+        "Reports local application capability state only.",
+        "Does not authenticate to Azure or Power Platform.",
+        "Does not inspect or execute local scripts."
+      ]
+    },
+    {
+      "id": "core.list_capabilities",
+      "name": "List SKYFALL capabilities",
+      "tool_name": "list_skyfall_capabilities",
+      "category": "core",
+      "description": "Lists capabilities explicitly registered and enabled in the SKYFALL capability catalogue.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Optional category filter. Use 'all' or 'core'.",
+            "default": "all"
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Lists implemented capabilities only.",
+        "Planned integrations are not represented as executable tools."
+      ]
+    },
+    {
+      "id": "core.describe_capability",
+      "name": "Describe a SKYFALL capability",
+      "tool_name": "describe_skyfall_capability",
+      "category": "core",
+      "description": "Returns the registered description, inputs, risk level and limitations for one SKYFALL capability ID.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "capability_id": {
+            "type": "string",
+            "description": "Exact capability ID, for example core.get_status."
+          }
+        },
+        "required": [
+          "capability_id"
+        ]
+      },
+      "limitations": [
+        "Only returns entries from the local capability catalogue.",
+        "Does not activate or install capabilities."
+      ]
+    },
+    {
+      "id": "workspace.get_index_status",
+      "name": "Get workspace index status",
+      "tool_name": "get_workspace_index_status",
+      "category": "workspace",
+      "description": "Returns aggregate index status only for enabled workspaces whose metadata sharing was explicitly approved in the SKYFALL desktop UI.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "limitations": [
+        "Reports aggregate metadata only.",
+        "Does not inspect folders or trigger a scan.",
+        "Does not return source code."
+      ]
+    },
+    {
+      "id": "workspace.list_workspaces",
+      "name": "List AI-approved workspaces",
+      "tool_name": "list_workspaces",
+      "category": "workspace",
+      "description": "Lists only enabled workspace roots for which the user explicitly allowed filenames and extracted metadata to be shared with Copilot.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "limitations": [
+        "Workspaces without AI metadata consent are omitted.",
+        "Does not return source code or secrets."
+      ]
+    },
+    {
+      "id": "workspace.search_files",
+      "name": "Search workspace files",
+      "tool_name": "search_workspace_files",
+      "category": "workspace",
+      "description": "Searches indexed filenames and locally extracted static metadata in enabled workspaces with explicit AI metadata-sharing consent.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Search words or script name, 1 to 200 characters."
+          },
+          "file_type": {
+            "type": "string",
+            "description": "all, scripts, documents, powershell, python, yaml, json, or markdown.",
+            "default": "all"
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Optional workspace ID from list_workspaces."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum results, 1 to 50.",
+            "default": 20
+          }
+        },
+        "required": [
+          "query"
+        ]
+      },
+      "limitations": [
+        "Search results contain metadata only.",
+        "Source file contents are not returned.",
+        "Sensitive-looking files and detected secret-bearing files are excluded."
+      ]
+    },
+    {
+      "id": "workspace.describe_file",
+      "name": "Describe an indexed workspace file",
+      "tool_name": "describe_workspace_file",
+      "category": "workspace",
+      "description": "Returns extracted static metadata for one indexed file in an AI-approved workspace, including parameters, functions, imports and summary where detected.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "file_id": {
+            "type": "string",
+            "description": "Exact file_id returned by search_workspace_files."
+          }
+        },
+        "required": [
+          "file_id"
+        ]
+      },
+      "limitations": [
+        "Returns metadata only, not source code.",
+        "Only works for enabled workspaces with explicit AI metadata consent.",
+        "Static analysis is best-effort and does not execute code."
+      ]
+    }
+  ]
+}

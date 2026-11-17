@@ -1,0 +1,14 @@
+PySide6
+qasync
+pydantic
+pydantic-settings
+PyYAML
+httpx
+openpyxl
+platformdirs
+keyring
+structlog
+
+# GitHub Copilot SDK (pinned for repeatable integration)
+github-copilot-sdk==1.0.34
+mcp>=2.0,<3.0
