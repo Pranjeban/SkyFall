@@ -64,16 +64,16 @@ class MarkdownMessageLabel(QLabel):
     """QLabel that renders Copilot Markdown via Qt's Markdown parser."""
 
     MARKDOWN_CSS = r"""
-    body { color: #E8E1EC; font-family: 'Segoe UI'; font-size: 13px; }
+    body { color: #E7E5EA; font-family: 'Segoe UI'; font-size: 13px; }
     p { margin: 0 0 7px 0; }
-    h1, h2, h3, h4 { color: #F4EFF8; margin: 8px 0 5px 0; }
-    a { color: #C69AFF; }
-    code { color: #D8C5E8; background-color: #302A37; font-family: Consolas; }
-    pre { color: #E8E1EC; background-color: #29242F; padding: 8px; font-family: Consolas; }
-    blockquote { color: #B7AFC0; background-color: #29242F; }
+    h1, h2, h3, h4 { color: #F0EFF2; margin: 8px 0 5px 0; font-weight: 600; }
+    a { color: #B99CCF; }
+    code { color: #C8C1D0; background-color: #211C27; font-family: Consolas; }
+    pre { color: #E0DDE5; background-color: #15121A; padding: 8px; font-family: Consolas; }
+    blockquote { color: #AAA6B0; background-color: #18151E; }
     table { border-collapse: collapse; }
-    th, td { border: 1px solid #554A60; padding: 4px 7px; }
-    th { color: #E8E1EC; background-color: #302A37; }
+    th, td { border: 1px solid #38313F; padding: 4px 7px; }
+    th { color: #E7E5EA; background-color: #211C27; }
     li { margin-bottom: 3px; }
     """
 
@@ -195,19 +195,19 @@ class ProfileManagerDialog(QDialog):
         self.setMinimumWidth(560)
         self.action = "close"
         self.selected_value = ""
-        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0EFF2;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 18, 18, 18)
         layout.setSpacing(12)
         hint = QLabel("Select an existing profile or create a new one. Sign-in starts only after you explicitly request it.")
         hint.setWordWrap(True)
-        hint.setStyleSheet("color:#A69EAD;font-size:12px;")
+        hint.setStyleSheet("color:#8A8A95;font-size:12px;")
         layout.addWidget(hint)
 
         self.items = QListWidget()
         self.items.setStyleSheet(
-            "QListWidget{background:#25212B;color:#F0ECF4;border:1px solid #594769;border-radius:8px;padding:6px;}"
+            "QListWidget{background:#15121A;color:#F0EFF2;border:1px solid #403847;border-radius:8px;padding:6px;}"
             "QListWidget::item{padding:9px;border-radius:5px;}"
             "QListWidget::item:selected{background:#503665;color:#E4CAFF;}"
         )
@@ -255,14 +255,14 @@ class AzureProfileCreateDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Create Azure profile")
         self.setMinimumWidth(540)
-        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0EFF2;}")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
 
         heading = QLabel("Connect a Microsoft Azure account")
-        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4EFF8;")
+        heading.setStyleSheet("font-size:17px;font-weight:600;color:#F0EFF2;")
         layout.addWidget(heading)
 
         info = QLabel(
@@ -271,7 +271,7 @@ class AzureProfileCreateDialog(QDialog):
             "discovers the signed-in tenant and accessible subscriptions."
         )
         info.setWordWrap(True)
-        info.setStyleSheet("color:#A69EAD;font-size:12px;")
+        info.setStyleSheet("color:#8A8A95;font-size:12px;")
         layout.addWidget(info)
 
         form = QFormLayout()
@@ -283,7 +283,7 @@ class AzureProfileCreateDialog(QDialog):
         for field in (self.name_edit, self.tenant_edit):
             field.setMinimumHeight(36)
             field.setStyleSheet(
-                "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+                "background:#15121A;color:#F0EFF2;border:1px solid #403847;"
                 "border-radius:8px;padding:7px 10px;"
             )
         form.addRow("Profile name", self.name_edit)
@@ -291,7 +291,7 @@ class AzureProfileCreateDialog(QDialog):
         layout.addLayout(form)
 
         self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color:#F09BA7;font-size:11px;")
+        self.error_label.setStyleSheet("color:#D59BA7;font-size:11px;")
         self.error_label.setWordWrap(True)
         layout.addWidget(self.error_label)
 
@@ -336,12 +336,12 @@ class PowerPlatformProfileCreateDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Add Power Platform profile")
         self.setMinimumWidth(540)
-        self.setStyleSheet("QDialog{background:#1B1821;color:#F0ECF4;}")
+        self.setStyleSheet("QDialog{background:#1B1821;color:#F0EFF2;}")
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(12)
         heading = QLabel("Connect a Power Platform account")
-        heading.setStyleSheet("font-size:17px;font-weight:700;color:#F4EFF8;")
+        heading.setStyleSheet("font-size:17px;font-weight:600;color:#F0EFF2;")
         layout.addWidget(heading)
         info = QLabel(
             "SKYFALL opens the same Microsoft browser sign-in used for Azure, saves this account as a local profile, "
@@ -359,14 +359,14 @@ class PowerPlatformProfileCreateDialog(QDialog):
         for field in (self.name_edit, self.tenant_edit):
             field.setMinimumHeight(36)
             field.setStyleSheet(
-                "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+                "background:#15121A;color:#F0EFF2;border:1px solid #403847;"
                 "border-radius:8px;padding:7px 10px;"
             )
         form.addRow("Profile name", self.name_edit)
         form.addRow("Tenant (optional)", self.tenant_edit)
         layout.addLayout(form)
         self.error_label = QLabel("")
-        self.error_label.setStyleSheet("color:#F09BA7;font-size:11px;")
+        self.error_label.setStyleSheet("color:#D59BA7;font-size:11px;")
         layout.addWidget(self.error_label)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
@@ -446,6 +446,8 @@ class MainWindow(QMainWindow):
         self.delete_chat_button: QPushButton | None = None
         self.chat_input: QLineEdit | None = None
         self.chat_send_button: QPushButton | None = None
+        self.chat_tools_button: QPushButton | None = None
+        self.global_search_input: QLineEdit | None = None
         self.workspace_list: QListWidget | None = None
         self.workspace_ai_checkbox: QCheckBox | None = None
         self.workspace_status_label: QLabel | None = None
@@ -618,20 +620,26 @@ class MainWindow(QMainWindow):
         navigation_layout.setContentsMargins(2, 8, 3, 8)
         navigation_layout.setSpacing(4)
 
-        section = QLabel("YOUR SESSION")
+        section = QLabel("WORKSPACE")
         section.setObjectName("eyebrow")
         navigation_layout.addWidget(section)
 
         workflow_keys = {"azure", "azure_resources", "power_platform", "power_platform_resources", "executions", "reports"}
         workflow_heading_added = False
+        nav_glyphs = {
+            "overview": "◧", "chat": "▢", "capabilities": "✧", "workspaces": "▧",
+            "azure": "☁", "azure_resources": "▤", "power_platform": "◇",
+            "power_platform_resources": "⇢", "executions": "◉", "reports": "▥", "settings": "⚙",
+        }
         for label, key in self.NAV_ITEMS:
             if key in workflow_keys and not workflow_heading_added:
                 navigation_layout.addSpacing(9)
-                workflow_heading = QLabel("CLOUD WORKFLOWS")
+                workflow_heading = QLabel("CLOUD + DATA")
                 workflow_heading.setObjectName("eyebrow")
                 navigation_layout.addWidget(workflow_heading)
                 workflow_heading_added = True
-            button = QPushButton(f"   {label}")
+
+            button = QPushButton(f"{nav_glyphs.get(key, '·')}   {label}")
             button.setObjectName("navButton")
             button.setCheckable(True)
             button.setMinimumHeight(36)
@@ -667,11 +675,25 @@ class MainWindow(QMainWindow):
         bar.setObjectName("topBar")
         bar.setFixedHeight(58)
         layout = QHBoxLayout(bar)
-        layout.setContentsMargins(27, 0, 27, 0)
+        layout.setContentsMargins(24, 0, 24, 0)
+        layout.setSpacing(14)
         title = QLabel("Overview")
         title.setObjectName("pageTitle")
         self.top_title = title
         layout.addWidget(title)
+        local_mode = QLabel("●  LOCAL")
+        local_mode.setObjectName("localModePill")
+        local_mode.setToolTip("SKYFALL is running in this local Windows workspace")
+        layout.addWidget(local_mode)
+        layout.addStretch(1)
+        self.global_search_input = QLineEdit()
+        self.global_search_input.setObjectName("globalSearch")
+        self.global_search_input.setPlaceholderText("Ctrl+K  ·  Search SKYFALL...")
+        self.global_search_input.setClearButtonEnabled(True)
+        self.global_search_input.setMaximumWidth(390)
+        self.global_search_input.setAccessibleName("Search pages, conversations, or start a chat prompt")
+        self.global_search_input.returnPressed.connect(self._run_global_search)
+        layout.addWidget(self.global_search_input, 1)
         layout.addStretch(1)
         state = QLabel("●  AI CONNECTING")
         state.setObjectName("statusPending")
@@ -686,7 +708,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(20)
 
         greeting = QLabel("Your engineering workspace, in one place.")
-        greeting.setStyleSheet("font-size:25px;font-weight:750;color:#F4EFF8;")
+        greeting.setStyleSheet("font-size:25px;font-weight:600;color:#F0EFF2;")
         sub = QLabel(
             "Your personal engineering assistant is online. Plan engineering work, review account context, "
             "and track supervised read-only operations from the Orchestration workspace."
@@ -769,7 +791,7 @@ class MainWindow(QMainWindow):
         self.new_chat_button.setObjectName("primaryButton")
         self.new_chat_button.clicked.connect(self._create_new_conversation)
         actions.addWidget(self.new_chat_button, 1)
-        self.delete_chat_button = QPushButton("???")
+        self.delete_chat_button = QPushButton("\u22ef")
         self.delete_chat_button.setObjectName("secondaryButton")
         self.delete_chat_button.setFixedWidth(38)
         self.delete_chat_button.setToolTip("Conversation actions")
@@ -836,15 +858,23 @@ class MainWindow(QMainWindow):
         input_row = QHBoxLayout(composer)
         input_row.setContentsMargins(12, 8, 8, 8)
         input_row.setSpacing(8)
+        self.chat_tools_button = QPushButton("+")
+        self.chat_tools_button.setObjectName("composerToolButton")
+        self.chat_tools_button.setFixedSize(34, 34)
+        tools_menu = QMenu(self.chat_tools_button)
+        tools_menu.addAction("New conversation", self._create_new_conversation)
+        tools_menu.addAction("Open floating assistant", self._show_floating)
+        self.chat_tools_button.setMenu(tools_menu)
         self.chat_input = QLineEdit()
         self.chat_input.setObjectName("chatInput")
         self.chat_input.setFrame(False)
-        self.chat_input.setPlaceholderText("Ask SKYFALL to explain, plan or help with an engineering problem...")
+        self.chat_input.setPlaceholderText("Message SKYFALL... ask, plan, or inspect approved metadata")
         self.chat_input.returnPressed.connect(self._send_chat_message)
-        self.chat_send_button = QPushButton("?")
+        self.chat_send_button = QPushButton("\u2191")
         self.chat_send_button.setObjectName("primaryButton")
         self.chat_send_button.setFixedSize(38, 38)
         self.chat_send_button.clicked.connect(self._send_chat_message)
+        input_row.addWidget(self.chat_tools_button)
         input_row.addWidget(self.chat_input, 1)
         input_row.addWidget(self.chat_send_button)
         conversation_layout.addWidget(composer)
@@ -1017,7 +1047,7 @@ class MainWindow(QMainWindow):
             "do not add folders containing sensitive data unless policy permits sharing their metadata."
         )
         privacy_note.setWordWrap(True)
-        privacy_note.setStyleSheet("color:#A69EAD;font-size:12px;")
+        privacy_note.setStyleSheet("color:#8A8A95;font-size:12px;")
         privacy_layout.addWidget(privacy_note)
         layout.addWidget(privacy)
 
@@ -1356,7 +1386,7 @@ class MainWindow(QMainWindow):
         self.azure_profile_combo = QComboBox()
         self.azure_profile_combo.setMinimumHeight(36)
         self.azure_profile_combo.setStyleSheet(
-            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+            "background:#15121A;color:#F0EFF2;border:1px solid #403847;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.azure_profile_combo.currentIndexChanged.connect(self._on_azure_profile_changed)
@@ -1520,7 +1550,7 @@ class MainWindow(QMainWindow):
         self.pp_profile_combo = QComboBox()
         self.pp_profile_combo.setMinimumHeight(36)
         self.pp_profile_combo.setStyleSheet(
-            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+            "background:#15121A;color:#F0EFF2;border:1px solid #403847;"
             "border-radius:8px;padding:7px 10px;"
         )
         self.pp_profile_combo.currentIndexChanged.connect(self._on_powerplatform_profile_changed)
@@ -1634,7 +1664,7 @@ class MainWindow(QMainWindow):
             value = QLabel(value_text)
             value.setObjectName("metricValue")
             value.setWordWrap(True)
-            value.setStyleSheet("font-size:18px;font-weight:750;color:#F4EFF8;")
+            value.setStyleSheet("font-size:18px;font-weight:600;color:#F0EFF2;")
             detail = QLabel(detail_text)
             detail.setObjectName("muted")
             detail.setWordWrap(True)
@@ -1664,7 +1694,7 @@ class MainWindow(QMainWindow):
         self.pp_resource_environment_combo.setMinimumHeight(42)
         self.pp_resource_environment_combo.setPlaceholderText("Select a discovered environment")
         self.pp_resource_environment_combo.setStyleSheet(
-            "background:#211D27;color:#F0ECF4;border:1px solid #594769;"
+            "background:#15121A;color:#F0EFF2;border:1px solid #403847;"
             "border-radius:9px;padding:8px 11px;font-size:13px;"
         )
         self.pp_resource_environment_combo.currentIndexChanged.connect(self._on_powerplatform_environment_changed)
@@ -1816,8 +1846,8 @@ class MainWindow(QMainWindow):
         table.verticalHeader().setVisible(False)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         table.setStyleSheet(
-            "QTableWidget{background:#211D27;alternate-background-color:#28242E;"
-            "color:#E8E1EC;border:1px solid #443B4D;gridline-color:#3B3442;"
+            "QTableWidget{background:#15121A;alternate-background-color:#28242E;"
+            "color:#E7E5EA;border:1px solid #443B4D;gridline-color:#3B3442;"
             "selection-background-color:#503665;}"
             "QHeaderView::section{background:#29242F;color:#C8B8D7;border:0;"
             "border-bottom:1px solid #443B4D;padding:8px;font-weight:650;}"
@@ -2247,8 +2277,8 @@ class MainWindow(QMainWindow):
             if self.pp_status_label:
                 if active and auth.get("authenticated"):
                     self.pp_status_label.setText(
-                        f"Selected account: {active.get('name') or 'Microsoft account'} ? "
-                        f"{active.get('username') or 'identity unavailable'} ? "
+                        f"Selected account: {active.get('name') or 'Microsoft account'} | "
+                        f"{active.get('username') or 'identity unavailable'} | "
                         f"{auth.get('profile_count', 0)} saved profile(s)"
                     )
                 elif active:
@@ -2263,7 +2293,7 @@ class MainWindow(QMainWindow):
                 for profile in rows_for_combo:
                     label = profile.get("name") or "Microsoft account"
                     user = profile.get("username") or "unknown account"
-                    self.pp_profile_combo.addItem(f"{label} ? {user}", profile.get("profile_id"))
+                    self.pp_profile_combo.addItem(f"{label} | {user}", profile.get("profile_id"))
                 if active_id:
                     index = self.pp_profile_combo.findData(active_id)
                     if index >= 0:
@@ -2307,7 +2337,7 @@ class MainWindow(QMainWindow):
                         environment_name = str(item.get("name") or environment_id)
                         environment_type = str(item.get("type") or "Environment")
                         self.pp_resource_environment_combo.addItem(
-                            f"{environment_name} ? {environment_type}",
+                            f"{environment_name} | {environment_type}",
                             {
                                 "environment_id": environment_id,
                                 "name": environment_name,
@@ -2327,7 +2357,7 @@ class MainWindow(QMainWindow):
                     summary = f"Environments discovered: {len(rows)} through the Power Platform API"
                     flow_environment_count = sum(1 for item in rows if item.get("environment_url"))
                     if self.pp_status_label:
-                        self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {summary}")
+                        self.pp_status_label.setText(f"{self.pp_status_label.text()} | {summary}")
                     if self.pp_flow_metric_values.get("environment"):
                         self.pp_flow_metric_values["environment"].setText(f"{flow_environment_count} Dataverse-ready")
                     if self.pp_flow_status_label and flow_environment_count:
@@ -2345,7 +2375,7 @@ class MainWindow(QMainWindow):
                 else:
                     friendly_error = env_result.get("error", "Environment discovery could not be completed.")
                     if self.pp_status_label:
-                        self.pp_status_label.setText(f"{self.pp_status_label.text()} ? {friendly_error}")
+                        self.pp_status_label.setText(f"{self.pp_status_label.text()} | {friendly_error}")
                     guidance = friendly_error if auth.get("authenticated") else "Add a profile and sign in through Microsoft to discover environments."
                     if self.pp_flow_status_label:
                         self.pp_flow_status_label.setText(guidance)
@@ -2753,7 +2783,7 @@ class MainWindow(QMainWindow):
         panel_layout.addWidget(self._status_row("Integration status", "Not connected", "offline"))
         for item in items:
             line = QLabel(f"•  {item}")
-            line.setStyleSheet("color:#B7AFC0;font-size:13px;padding:5px 0;")
+            line.setStyleSheet("color:#B1B1BA;font-size:13px;padding:5px 0;")
             panel_layout.addWidget(line)
         layout.addWidget(panel)
         layout.addStretch(1)
@@ -2808,7 +2838,7 @@ class MainWindow(QMainWindow):
         lbl.setObjectName("metricLabel")
         val = QLabel(value)
         val.setObjectName("metricValue")
-        val.setStyleSheet("font-size:19px;font-weight:750;color:#F4EFF8;")
+        val.setStyleSheet("font-size:19px;font-weight:600;color:#F0EFF2;")
         self.metric_values[label] = val
         det = QLabel(detail)
         det.setObjectName("muted")
@@ -2827,7 +2857,7 @@ class MainWindow(QMainWindow):
         box.setContentsMargins(14, 15, 14, 14)
         box.setSpacing(10)
         heading = QLabel(title)
-        heading.setStyleSheet("font-size:13px;font-weight:700;color:#E8E1EC;")
+        heading.setStyleSheet("font-size:13px;font-weight:600;color:#E7E5EA;")
         body = QLabel(description)
         body.setObjectName("muted")
         body.setWordWrap(True)
@@ -2845,7 +2875,7 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         name = QLabel(label)
-        name.setStyleSheet("color:#A69EAD;font-size:11px;")
+        name.setStyleSheet("color:#8A8A95;font-size:11px;")
         status = QLabel(value)
         status.setObjectName(
             {"good": "statusGood", "pending": "statusPending", "offline": "statusOffline"}.get(state, "statusOffline")
@@ -2872,6 +2902,47 @@ class MainWindow(QMainWindow):
     def _install_shortcuts(self) -> None:
         shortcut = QShortcut(QKeySequence("Ctrl+Shift+Space"), self)
         shortcut.activated.connect(self._show_floating)
+        search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        search_shortcut.activated.connect(self._focus_global_search)
+
+    def _focus_global_search(self) -> None:
+        if self.global_search_input is not None:
+            self.global_search_input.setFocus()
+            self.global_search_input.selectAll()
+
+    def _run_global_search(self) -> None:
+        if self.global_search_input is None:
+            return
+        query = self.global_search_input.text().strip()
+        if not query:
+            return
+        folded = query.casefold()
+
+        page_match = next(
+            (
+                key for label, key in self.NAV_ITEMS
+                if folded == label.casefold() or folded in label.casefold()
+            ),
+            None,
+        )
+        if page_match is not None:
+            self._select_page(page_match)
+            self.global_search_input.clear()
+            return
+
+        if self.history_list is not None:
+            for index in range(self.history_list.count()):
+                item = self.history_list.item(index)
+                if folded in item.text().casefold():
+                    self._select_page("chat")
+                    if self.history_search_input is not None:
+                        self.history_search_input.clear()
+                    self.history_list.setCurrentItem(item)
+                    self.global_search_input.clear()
+                    return
+
+        self._open_chat_with_prompt(query)
+        self.global_search_input.clear()
 
     def _show_floating(self) -> None:
         self.floating.show()
@@ -2993,12 +3064,7 @@ class MainWindow(QMainWindow):
         self.top_state.setObjectName("statusGood")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
-        self.chat_subtitle.setText(
-            "Connected to GitHub Copilot and SKYFALL's local MCP server. Nineteen tools are registered for "
-            "core status, approved workspace metadata, Azure account/subscription discovery, Power Platform "
-            "profile/environment discovery, Azure Function App and Power Automate flow inventory, and explicitly requested Microsoft sign-in. Resource changes and "
-            "script execution are not enabled."
-        )
+        self.chat_subtitle.setText("Copilot + MCP connected | approved metadata tools are read-only.")
         self.chat_input.setEnabled(True)
         self.chat_send_button.setEnabled(True)
         self.new_chat_button.setEnabled(True)
@@ -3014,10 +3080,7 @@ class MainWindow(QMainWindow):
         self.top_state.setObjectName("statusOffline")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
-        self.chat_subtitle.setText(
-            "Copilot could not connect. Check the details in the conversation. "
-            "No tools or cloud operations are enabled."
-        )
+        self.chat_subtitle.setText("Copilot is offline | no tools or cloud operations are available.")
         self._add_message("SKYFALL", f"I couldn't connect to Copilot.\n\n{error}", assistant=True)
         self.statusBar().showMessage("SKYFALL AI connection failed")
 
@@ -3337,12 +3400,9 @@ class MainWindow(QMainWindow):
         wrapper = QWidget()
         wrapper_layout = QHBoxLayout(wrapper)
         wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        if assistant:
-            wrapper_layout.addWidget(bubble, 0, Qt.AlignmentFlag.AlignLeft)
-            wrapper_layout.addStretch(1)
-        else:
-            wrapper_layout.addStretch(1)
-            wrapper_layout.addWidget(bubble, 0, Qt.AlignmentFlag.AlignRight)
+        wrapper_layout.addStretch(1)
+        wrapper_layout.addWidget(bubble)
+        wrapper_layout.addStretch(1)
         self.chat_layout.insertWidget(max(0, self.chat_layout.count() - 1), wrapper)
         self._scroll_chat_to_bottom()
         return message_label

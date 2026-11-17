@@ -114,3 +114,8 @@ Applied the supplied visual language brief: minimal near-black charcoal surfaces
 ## 2026-11-18 ? Power Platform test failures
 
 Updated environment permission guidance to mention delegated environment read permission. Removed stale MCP smoke-test expectation for manual app client ID, switched it to assert safe test-mode blocking for Azure CLI-backed sign-in, and added an explicit test-mode guard. Focused unit tests pass; full MCP stdio smoke test awaits an environment with the MCP SDK installed.
+
+
+## 2026-11-18 ? Kiro-inspired full UI polish
+
+User requested a stronger overall Kiro.dev-inspired redesign. Added centered global search with Ctrl+K and navigation/session/draft routing, Local workspace context, icon-led nav groups, quieter conversation canvas, and compact composer controls; updated theme and Markdown typography. Existing operation behavior remains unchanged.

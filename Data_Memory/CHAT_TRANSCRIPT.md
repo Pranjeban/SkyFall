@@ -187,3 +187,12 @@ Read the supplied design brief and applied its charcoal/violet, lighting-led, lo
 ### Assistant work summary
 
 Fixed the safe 401/403 diagnostic wording. The MCP test expected an outdated manual client ID prompt, so revised the smoke test for current Azure CLI-backed profile login and added a test-mode guard to prevent external browser sign-in. Added regression coverage. All 12 focused account/auth tests passed with an import-only `httpx` stub; syntax and diff checks passed. The MCP smoke test could not run in this workspace because the `mcp` package is missing.
+
+
+## New user message (2026-11-18)
+
+> make the UI better pleaeeeee make the UI as much as better take design inspiration from Kiro.dev and make totally like that
+
+### Assistant work summary
+
+Reviewed the official Kiro site and reworked the SKYFALL shell toward its command center: centered global search (Ctrl+K), Local pill and Copilot/MCP state, icon-led nav groups, searchable sessions rail, centered unboxed assistant content, rounded user prompts, compact composer plus menu, and calmer shared typography/Markdown styling. Global search finds pages and conversation titles, else prefills a chat draft. Updated v0.9.2 log and memory. Syntax and diff checks pass; PySide6 visual QA unavailable in this environment.

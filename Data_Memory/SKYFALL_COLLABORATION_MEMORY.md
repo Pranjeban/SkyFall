@@ -116,3 +116,8 @@ User provided `C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\Design.md` an
 ## Power Platform diagnostics and MCP smoke test (2026-11-18)
 
 User reported a Power Platform environment permission unit assertion failing because the safe message omitted the expected ?delegated environment read permission? wording. Updated `_http_error()` 401/403 guidance to include it without revealing server details. User also reported MCP smoke test still expected Power Platform sign-in to request `client_id`, which is stale since the app now uses isolated Azure CLI browser sign-in. Updated the harness to expect the profile-name input and `SKYFALL_TEST_MODE` sign-in block; added that test-mode guard to the MCP login tool and regression test. All 12 focused account/auth tests pass (using an import-only `httpx` stub because it is missing here). Smoke test cannot run because `mcp` is absent from this Python; syntax and whitespace checks pass.
+
+
+## Kiro-inspired UI polish (2026-11-18)
+
+User asked to make the full UI as polished as possible using Kiro.dev as the inspiration. Reviewed its current Crew homepage and implemented a Kiro-inspired command header (centered global search, `Ctrl+K`, local workspace pill, Copilot/MCP status), icon-led grouped nav, searchable Sessions rail, centered unboxed assistant response, rounded user response, and composer plus menu. Refined typography and neutral layered surfaces and aligned Markdown rendering. Global search routes to pages/session titles, otherwise pre-fills a chat draft without sending. No cloud operation/account behavior changed. Code compiles and `git diff --check` passes. PySide6 is unavailable in the active interpreter, so launch/screenshot QA remains pending. Inspiration reference: https://kiro.dev/.

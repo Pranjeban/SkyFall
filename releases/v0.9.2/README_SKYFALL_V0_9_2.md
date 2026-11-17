@@ -68,3 +68,9 @@ Verification: Python syntax compilation and `git diff --check` passed. Visual la
 Updated safe 401/403 environment discovery diagnostics to explicitly name the delegated environment read permission. The MCP stdio smoke test had stale v0.9.1-era behavior expecting a manual Power Platform app client ID, while the current supported flow uses an isolated Azure CLI profile and browser sign-in. Updated the smoke test to assert the profile-name schema and that external sign-in is blocked in `SKYFALL_TEST_MODE`; added the corresponding guard in the Power Platform MCP login tool and unit coverage.
 
 The 12 focused Power Platform account/auth tool tests pass. Python compilation and `git diff --check` pass. The MCP stdio smoke test cannot run in this workspace because its configured interpreter lacks the `mcp` and `httpx` packages; rerun it in the project's configured Windows virtual environment.
+
+## Kiro-inspired command center polish (2026-11-18)
+
+Refined the shell using the Kiro Crew session view as interaction inspiration ([Kiro](https://kiro.dev/)): a centered global search field with `Ctrl+K`, explicit LOCAL workspace context, icon-led grouped navigation, compact searchable Sessions panel, centered unboxed assistant responses, rounded user prompts, and a composer action menu. Tightened typography and reduced weight/color noise across the shell; aligned Markdown content with the neutral graphite/violet palette. The global search routes to matching pages or conversation titles and uses unmatched text as a draft chat prompt without sending it. Existing cloud and account flows are unchanged.
+
+Verification: `py_compile` and `git diff --check` passed. PySide6 is unavailable in this interpreter, so rendered visual QA remains to be done in the configured Windows environment.

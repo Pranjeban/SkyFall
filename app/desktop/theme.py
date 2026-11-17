@@ -591,4 +591,33 @@ QScrollBar:horizontal { background: transparent; height: 7px; margin: 2px 3px; }
 QScrollBar::handle:horizontal { background: rgba(180,174,190,0.24); border-radius: 3px; min-width: 28px; }
 QStatusBar { background: #0B0911; color: #8A8A95; border: 0; padding: 2px 12px; font-size: 10px; }
 QStatusBar::item { border: 0; }
+QWidget#sidebarNavigationContent { background: transparent; border: 0; border-radius: 0; }
+QLabel#brandName { font-size: 16px; font-weight: 650; letter-spacing: 2px; }
+QLabel#brandCaption { font-size: 8px; letter-spacing: 1.25px; }
+QLabel#pageTitle { font-size: 16px; font-weight: 600; }
+QLabel#chatPageTitle { font-size: 20px; font-weight: 600; }
+QPushButton#navButton { min-height: 37px; padding: 8px 10px; text-align: left; font-size: 12px; }
+QLabel#localModePill {
+    background: #17151D; color: #AAA6B0; border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 9px; padding: 6px 9px; font-size: 9px; font-weight: 600; letter-spacing: 0.6px;
+}
+QLineEdit#globalSearch {
+    background: #15121A; color: #C8C5CD; border: 1px solid rgba(255,255,255,0.065);
+    border-top: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 7px 12px;
+    font-size: 11px;
+}
+QLineEdit#globalSearch:focus { border-color: rgba(183,145,223,0.42); background: #18151E; }
+QLabel#statusGood, QLabel#statusPending, QLabel#statusOffline {
+    border-radius: 9px; padding: 7px 10px; font-size: 9px; font-weight: 600; letter-spacing: 0.3px;
+}
+QFrame#assistantMessage { background: transparent; border: 0; border-radius: 0; }
+QFrame#assistantMessage QLabel#eyebrow { color: #96919D; font-size: 9px; font-weight: 600; letter-spacing: 0.8px; }
+QFrame#userMessage { background: #1D1924; border: 1px solid rgba(255,255,255,0.07); border-top: 1px solid rgba(255,255,255,0.10); border-radius: 14px; }
+QPushButton#composerToolButton {
+    background: transparent; color: #AAA6B0; border: 0; border-radius: 9px; font-size: 19px; font-weight: 400;
+}
+QPushButton#composerToolButton:hover { background: #211C2A; color: #D3C2E8; }
+QPushButton#primaryButton { min-height: 36px; }
+QMenu { padding: 6px; }
+QMenu::item { padding: 8px 24px 8px 12px; }
 """
