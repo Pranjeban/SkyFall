@@ -454,6 +454,45 @@
       ]
     },
     {
+      "id": "azure_resources.inventory_all_resources",
+      "name": "Inventory Azure resources",
+      "tool_name": "inventory_azure_resources",
+      "category": "azure_resources",
+      "description": "Discovers non-secret Azure Resource Graph metadata across enabled subscriptions visible to selected authenticated SKYFALL profiles and can create a local XLSX report.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "description": "Azure profile ID from list_azure_profiles, or 'all' for every registered profile.",
+            "default": "all"
+          },
+          "subscription_ids": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Optional allow-filter of subscription IDs already accessible to the selected profile(s)."
+          },
+          "generate_excel": {
+            "type": "boolean",
+            "description": "Generate a local XLSX report in reports/Azure.",
+            "default": true
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Queries only enabled subscriptions visible to selected authenticated Azure CLI profile(s).",
+        "Returns only resource ID, name, type, kind, location, resource group, subscription context, SKU name/tier and managed-by ID.",
+        "Does not query arbitrary resource properties, tags, secrets, diagnostics, cost, health, RBAC or policy data.",
+        "Azure Resource Graph indexing may lag recent changes; permissions are required.",
+        "This operation does not create, update or delete Azure resources. XLSX output is a local file write."
+      ]
+    },
+    {
       "id": "azure_resources.inventory_function_apps",
       "name": "Discover Azure Function Apps",
       "tool_name": "inventory_azure_function_apps",
@@ -492,6 +531,77 @@
         "Resource Graph permissions are required; a profile may be authenticated but lack Reader/Resource Graph access.",
         "App settings, connection strings, publishing profiles, host keys and function keys are never retrieved.",
         "The operation does not create, update or delete Azure resources. XLSX output is a local file write."
+      ]
+    },
+    {
+      "id": "power_platform_resources.inventory_power_apps",
+      "name": "Generate Power Apps inventory",
+      "tool_name": "inventory_power_apps",
+      "category": "power_platform_resources",
+      "description": "Lists allow-listed Power Apps metadata in one explicitly selected accessible environment and optionally writes a local XLSX report.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "description": "Required environment GUID from list_powerplatform_environments."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional saved Power Platform profile ID; otherwise uses the selected profile."
+          },
+          "generate_excel": {
+            "type": "boolean",
+            "description": "Generate a local XLSX report under reports/PowerPlatform.",
+            "default": true
+          }
+        },
+        "required": ["environment_id"]
+      },
+      "limitations": [
+        "Requires environment access and Power Apps administrator read permissions for the selected account.",
+        "Uses the Power Platform API 2024-10-01 apps admin endpoint; API permissions and feature availability may depend on tenant configuration.",
+        "Returns app identity, owner, version, timestamps, form factor, sharing counts and environment metadata only.",
+        "Does not read app definitions, connection details, or secrets and does not modify cloud resources."
+      ]
+    },
+    {
+      "id": "power_platform_resources.inventory_solutions",
+      "name": "Generate Power Platform solution inventory",
+      "tool_name": "inventory_power_platform_solutions",
+      "category": "power_platform_resources",
+      "description": "Lists visible Dataverse solution metadata in a verified environment and optionally writes a local XLSX report.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "description": "Required environment GUID from list_powerplatform_environments."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional saved Power Platform profile ID; otherwise uses the selected profile."
+          },
+          "generate_excel": {
+            "type": "boolean",
+            "description": "Generate a local XLSX report under reports/PowerPlatform.",
+            "default": true
+          }
+        },
+        "required": ["environment_id"]
+      },
+      "limitations": [
+        "Requires the account to access the environment and read Dataverse solutions.",
+        "Reads visible solution metadata only; it does not retrieve solution packages or component payloads.",
+        "Cloud resources are not modified."
       ]
     },
     {

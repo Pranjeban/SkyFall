@@ -196,3 +196,38 @@ Fixed the safe 401/403 diagnostic wording. The MCP test expected an outdated man
 ### Assistant work summary
 
 Reviewed the official Kiro site and reworked the SKYFALL shell toward its command center: centered global search (Ctrl+K), Local pill and Copilot/MCP state, icon-led nav groups, searchable sessions rail, centered unboxed assistant content, rounded user prompts, compact composer plus menu, and calmer shared typography/Markdown styling. Global search finds pages and conversation titles, else prefills a chat draft. Updated v0.9.2 log and memory. Syntax and diff checks pass; PySide6 visual QA unavailable in this environment.
+
+
+## New user message (2026-11-18)
+
+> "C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\Design.md" Please this will be the next task we need to perform and we will work with the older UI the new one is bad revert back is what we will do
+
+### Assistant work summary
+
+Read `Design.md`, which defines the proposed v1.1 Universal Cloud Intelligence scope. Inspected Git history and identified the parent commit immediately before the Nov 18 Command Center UI change. The worktree was clean before the rollback.
+
+## New user message (2026-11-18)
+
+> command center redesign on just before that one and also start working on V1.1 as paticenfully and chnage models in between where ever need like according to need work with nodels also so tat less token will be connsumes
+
+### Assistant work summary
+
+Restored only `app/desktop/main_window.py` and `app/desktop/theme.py` from commit `83d3cf8`, immediately before the Command Center redesign. Added a phased v1.1 release plan and updated project direction. A low-cost read-only model audit mapped existing capabilities and gaps. The first gate is identity/discovery architecture and behavior; the brief's MSAL requirement conflicts with the active isolated Azure CLI no-client-ID sign-in, so that must be resolved while preserving the user's preference. No tests were run.
+
+
+## New user message (2026-11-18)
+
+> "C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\V.1..0.1.md" How you impliented these functionalitites ?
+
+### Assistant response summary
+
+Explained that the document is a proposed scope, not a complete implementation. Mapped current features to Copilot/MCP/workspace metadata, Azure profile/subscription discovery and Function App inventory, Power Platform environment/flow inventory, and a limited orchestration preview. Identified broad resource inventory, Power Apps/solutions/connections, live-data cross-platform orchestration, monitoring/cost/governance, and controlled cloud operations as unimplemented.
+
+
+## New user message (2026-11-18)
+
+> Then please impliment this under V1.0.1 all of this please
+
+### Assistant work summary
+
+Started the requested full v1.0.1 scope. Added a phased release tracker with an acceptance checklist; retained the v1.1 document as the original scope record but marked its delivery label superseded. Implemented a general read-only Azure Resource Graph inventory using non-secret metadata fields and optional local XLSX output. Implemented a Power Apps metadata inventory for a verified accessible environment through the documented Power Platform API 2024-10-01, with bounded safe pagination and optional XLSX output. Wired both through MCP and the enabled capability registry; adjusted existing count expectations. Syntax compilation, JSON capability parse/count, and `git diff --check` passed. No tests or live cloud requests were run. Much of the requested scope remains to be implemented; app version stays 0.9.2 until completion.

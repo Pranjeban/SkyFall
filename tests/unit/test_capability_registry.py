@@ -12,9 +12,9 @@ class CapabilityRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = CapabilityRegistry.default()
 
-    def test_catalogue_contains_twenty_enabled_tools(self) -> None:
+    def test_catalogue_contains_twenty_two_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 20)
+        self.assertEqual(len(capabilities), 22)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -37,7 +37,9 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "start_powerplatform_login",
                 "get_microsoft_auth_job_status",
                 "inventory_azure_function_apps",
+                "inventory_azure_resources",
                 "inventory_power_automate_flows",
+                "inventory_power_apps",
             },
         )
 
@@ -72,9 +74,9 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(len(self.registry.list(category="core")), 3)
         self.assertEqual(len(self.registry.list(category="workspace")), 4)
         self.assertEqual(len(self.registry.list(category="azure")), 4)
-        self.assertEqual(len(self.registry.list(category="azure_resources")), 1)
+        self.assertEqual(len(self.registry.list(category="azure_resources")), 2)
         self.assertEqual(len(self.registry.list(category="power_platform")), 4)
-        self.assertEqual(len(self.registry.list(category="power_platform_resources")), 1)
+        self.assertEqual(len(self.registry.list(category="power_platform_resources")), 2)
 
     def test_duplicate_ids_are_rejected(self) -> None:
         original = json.loads(

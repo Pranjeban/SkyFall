@@ -28,8 +28,11 @@ from skyfall_mcp.tools.accounts import (
 )
 from skyfall_mcp.tools.azure_resources import (
     inventory_azure_function_apps as _inventory_azure_function_apps,
+    inventory_azure_resources as _inventory_azure_resources,
 )
 from skyfall_mcp.tools.powerplatform_resources import (
+    inventory_power_apps as _inventory_power_apps,
+    inventory_power_platform_solutions as _inventory_power_platform_solutions,
     inventory_power_automate_flows as _inventory_power_automate_flows,
 )
 from skyfall_mcp.tools.core import (
@@ -46,7 +49,7 @@ mcp = MCPServer(
     instructions=(
     "SKYFALL v0.9.2 MCP server. Exposes read-only core status/capability tools, "
         "metadata-only workspace discovery, Azure CLI account/subscription discovery, "
-        "Power Platform delegated OAuth account/environment discovery, read-only Azure Function App and Dataverse cloud-flow inventory with local XLSX reporting, and explicit user-requested "
+        "Power Platform account/environment discovery, read-only Azure resource and Function App plus Power Apps, Dataverse solution and cloud-flow inventory with local XLSX reporting, and explicit user-requested "
     "interactive Microsoft sign-in jobs. Azure profiles are isolated by AZURE_CONFIG_DIR. "
     "Login tools may open a Microsoft sign-in page only when the user explicitly asks "
     "to connect or sign in. They do not create, update or delete cloud resources. "
@@ -181,6 +184,21 @@ def inventory_azure_function_apps(
     return _inventory_azure_function_apps(profile_id, subscription_ids, generate_excel)
 
 
+@mcp.tool(title="Inventory Azure resources")
+def inventory_azure_resources(
+    profile_id: str = "all",
+    subscription_ids: list[str] | None = None,
+    generate_excel: bool = True,
+) -> str:
+    """Inventory non-secret Azure resource metadata across accessible subscriptions.
+
+    Returns resource IDs, names, types, locations, resource groups, subscription
+    context, SKU names/tiers, and managed-by IDs only. It does not inspect
+    arbitrary resource properties, tags, settings, keys, or diagnostic data.
+    """
+    return _inventory_azure_resources(profile_id, subscription_ids, generate_excel)
+
+
 @mcp.tool(title="Check Microsoft sign-in progress")
 def get_microsoft_auth_job_status(job_id: str) -> str:
     """Check a started Azure or Power Platform sign-in job and return discovered non-secret tenant, subscription and environment metadata after completion."""
@@ -199,6 +217,34 @@ def inventory_power_automate_flows(
     Flow definitions, connection details and secrets are excluded.
     """
     return _inventory_power_automate_flows(environment_id, environment_name, generate_excel)
+
+
+@mcp.tool(title="Generate Power Apps inventory")
+def inventory_power_apps(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Power Apps metadata for an environment discovered for the selected account.
+
+    Requires access to the environment and permissions to read Power Apps as an
+    administrator. App definitions, connection details, and secrets are excluded.
+    """
+    return _inventory_power_apps(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Power Platform solution inventory")
+def inventory_power_platform_solutions(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory solution names, versions, publishers and management state in one environment.
+
+    Uses allow-listed Dataverse solution metadata only; solution files, components,
+    payloads and secrets are not downloaded.
+    """
+    return _inventory_power_platform_solutions(environment_id, profile_id, generate_excel)
 
 
 if __name__ == "__main__":

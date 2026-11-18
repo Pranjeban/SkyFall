@@ -1,4 +1,4 @@
-"""End-to-end stdio smoke test for SKYFALL v0.9.2.
+"""End-to-end stdio smoke test for SKYFALL v1.0.1 development capabilities.
 
 Uses an isolated temporary workspace database and sample script. It does not
 read or modify the user's configured workspaces, call cloud services, or run
@@ -44,7 +44,9 @@ EXPECTED_TOOL_NAMES = {
     "start_powerplatform_login",
     "get_microsoft_auth_job_status",
     "inventory_azure_function_apps",
+    "inventory_azure_resources",
     "inventory_power_automate_flows",
+    "inventory_power_apps",
 }
 
 
@@ -217,9 +219,9 @@ async def run_server_test(local_app_data: Path) -> int:
         status_payload = json_payload(status, "get_skyfall_status")
         if status_payload.get("application") != "SKYFALL":
             raise RuntimeError("Status tool returned an unexpected application name.")
-        if status_payload.get("enabled_tools") != 20:
+        if status_payload.get("enabled_tools") != 22:
             raise RuntimeError(
-                "Status tool did not report twenty enabled tools; "
+                "Status tool did not report twenty-two enabled tools; "
                 f"got {status_payload.get('enabled_tools')!r}."
             )
 

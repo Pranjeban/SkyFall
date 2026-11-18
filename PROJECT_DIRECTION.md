@@ -15,8 +15,26 @@ This note captures the user's stated product direction so future SKYFALL work ca
 - Use a more professional color palette. The previous chat canvas/background was strongly disliked and needs to remain comfortable and readable.
 - Let users delete a conversation from the app.
 - Fix Power Platform profile dropdown behavior so profile use does not require going through “Manage profiles” each time.
-- Power Platform profile, environment discovery, and flow inventory now use per-account MSAL OAuth plus Microsoft REST APIs; active app paths no longer require PAC CLI.
+- The active Power Platform environment and flow inventory path reuses isolated Azure CLI sign-in and Microsoft REST APIs; active app paths no longer require PAC CLI. A separate direct MSAL implementation remains in the account module but is not the current desktop sign-in path.
 - Keep the user informed that Power Platform environment listing API is preview and documented Dataverse flow inventory excludes My Flows.
+
+## v1.1 direction (2026-11-18)
+
+The user has started the v1.1 milestone from `Images/Design.md`: build SKYFALL into a unified Azure and Microsoft Power Platform cloud intelligence workspace. Treat the document as a phased product scope, not as a requirement to implement every cloud operation at once. Keep operations read-only until an explicit approval and controlled execution boundary is designed and delivered.
+
+- Restore the desktop interface to the version immediately before the 2026-11-18 Kiro-inspired Command Center redesign. Preserve the near-black workstation visual system and the existing cloud/account behavior from that baseline.
+- Build in verifiable slices: identity and tenant/subscription foundation; Azure resource inventory; Power Platform inventory; natural-language orchestration; cross-platform comparisons; reporting/monitoring; then controlled operations, audit, and governance.
+- The current code already discovers Azure CLI profiles, tenants/subscriptions, Power Platform environments, Function Apps, and solution cloud-flow metadata, and can create local Excel reports. It does not yet provide broad Azure resource inventory, Power Apps/solutions/connections inventory, cross-platform comparison, live-data conversational orchestration, monitoring, or approved cloud writes.
+- Architecture review is required before replacing authentication. The brief names MSAL, while the active no-client-ID Azure and Power Platform sign-in path uses isolated Azure CLI profiles. Preserve the user's no-manual-client-ID preference and validate a supported migration path before changing login.
+- Keep the app at 0.9.2 until v1.1 capabilities have been implemented and their acceptance criteria verified; do not advertise preview work as a release.
+
+See `releases/v1.1/README_SKYFALL_V1_1.md` for milestone sequencing and current status.
+
+## v1.0.1 implementation (2026-11-18)
+
+The user has now explicitly asked to implement the complete `Images/V.1..0.1.md` scope under **v1.0.1**. Use `releases/v1.0.1/README_SKYFALL_V1_0_1.md` as the active delivery tracker; this overrides the earlier v1.1 delivery label while preserving the feature brief. The app's displayed version remains 0.9.2 until the milestone is complete.
+
+Initial source implementation adds read-only general Azure Resource Graph inventory and Power Apps metadata inventory, both exposed through MCP and the capability catalogue with local XLSX reporting. These slices are implemented in source but have not been verified or visually exercised. Continue through the full brief in bounded slices; keep cloud writes and arbitrary script execution disabled until an approval and controlled-execution boundary is complete.
 
 ## Implementation context from the latest update
 
@@ -37,4 +55,4 @@ The user linked a ChatGPT conversation for fuller context, but its contents were
 
 User introduced Intelligent Engineering Orchestration as the next major milestone. Core flow: approved-workspace search; exact script identification; parameter/dependency inspection; explicit environment resolution; identity/auth validation; concrete plan; user approval; controlled execution; result validation; report delivery. They want a persistent progress bar with credential identity context, and a major professional UI update inspired by Dribbble/Behance.
 
-v1.0 preview UI work is in progress: task-first Execution Center, ten labeled stages, monotonic plan progress + indeterminate run progress, safe account/tenant/environment display, and explicit confirmation for the built-in read-only Dataverse inventory route. This route does not execute workspace source. General script execution remains gated on a real security boundary; do not mark v1.0 released until that runner and all ten steps are implemented and tested. A light stone/slate/blue-teal theme is being applied based on automation dashboard layouts and Fluent progress guidance.
+The v1.0 preview added a task-first Execution Center, ten labeled stages, safe account/tenant/environment display, and explicit confirmation for the built-in read-only Dataverse inventory route. This route does not execute workspace source. General script execution remains gated on a real security boundary. The desktop files have now been restored to the snapshot immediately before the Nov 18 Command Center redesign, per the user's direction; no cloud/account behavior was reverted.

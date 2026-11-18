@@ -119,3 +119,15 @@ Updated environment permission guidance to mention delegated environment read pe
 ## 2026-11-18 ? Kiro-inspired full UI polish
 
 User requested a stronger overall Kiro.dev-inspired redesign. Added centered global search with Ctrl+K and navigation/session/draft routing, Local workspace context, icon-led nav groups, quieter conversation canvas, and compact composer controls; updated theme and Markdown typography. Existing operation behavior remains unchanged.
+
+
+## 2026-11-18 — v1.1 start and UI baseline correction
+
+User supplied `Images/Design.md` as the next task: SKYFALL v1.1 Universal Cloud Intelligence across Azure and Power Platform. They specified restoring the UI from immediately before the Nov 18 Command Center redesign because the newer UI was bad, and asked to proceed patiently while using more efficient models where useful. Restored only `app/desktop/main_window.py` and `app/desktop/theme.py` from commit `83d3cf8`, the parent of the Command Center UI commit; cloud and account code was left intact. Created `releases/v1.1/README_SKYFALL_V1_1.md` and updated project direction with phased scope and current feature gaps. A read-only code audit found existing isolated Azure CLI profiles, tenant/subscription discovery, Function App inventory, Power Platform environment discovery, solution cloud-flow inventory, and local XLSX reports. Broad Azure inventory, Power Apps/solutions/connections, cross-platform live-data orchestration, monitoring/cost/governance, and controlled cloud writes remain future work. The brief names MSAL while the active no-client-ID sign-in path uses Azure CLI; resolve this architecture mismatch before altering authentication. App remains 0.9.2. No tests were run.
+
+
+## 2026-11-18 — v1.0.1 implementation started
+
+User clarified to implement the complete `Images/V.1..0.1.md` scope under v1.0.1. Created `releases/v1.0.1/README_SKYFALL_V1_0_1.md` with a phased delivery tracker and full-scope acceptance checklist; marked v1.1 as the superseded delivery label. Implemented source for a read-only general Azure Resource Graph inventory (safe metadata only, selected accessible profiles/subscriptions, optional XLSX) and Power Apps metadata inventory (verified environment, API 2024-10-01, safe pagination, owner/version/timestamps/sharing counts, optional XLSX). Added both as enabled MCP capabilities and updated capability-count expectations. `py_compile`, capability JSON parsing/count, and `git diff --check` passed. No tests or live cloud requests were run. These are initial slices; most v1.0.1 scope remains incomplete, and app version remains 0.9.2.
+
+The user first asked how those v1.1-scope functionalities had been implemented. Explained that the document is a proposal and that only earlier foundations were present: Copilot/MCP/workspace metadata, Azure profile/subscription discovery and Function App inventory, Power Platform environment/flow inventory, and an orchestration preview. Identified broad inventory, Power Apps and other inventories, monitoring, cross-platform orchestration, and cloud operations as gaps.
