@@ -307,3 +307,68 @@ class ConversationStore:
                 connection.execute(
                     "DELETE FROM app_state WHERE key = 'active_conversation_id'"
                 )
+    def update_conversation_title(self, conversation_id: str, title: str) -> None:
+        clean_title = (title or "").strip() or "New conversation"
+        with self._lock, self._connection() as connection:
+            exists = connection.execute("SELECT 1 FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
+            if exists is None:
+                raise KeyError(f"Conversation not found: {conversation_id}")
+            connection.execute("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?", (clean_title, self._now(), conversation_id))
+
+    def delete_message(self, message_id: int) -> None:
+        with self._lock, self._connection() as connection:
+            row = connection.execute("SELECT conversation_id FROM messages WHERE id = ?", (message_id,)).fetchone()
+            if row is None:
+                raise KeyError(f"Message not found: {message_id}")
+            conversation_id = row["conversation_id"]
+            connection.execute("DELETE FROM messages WHERE id = ?", (message_id,))
+            connection.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (self._now(), conversation_id))
+
+    def search_conversations(self, query: str, limit: int = 50) -> list[ConversationRecord]:
+        needle = (query or "").strip()
+        if not needle:
+            return self.list_conversations(limit=limit)
+        safe_limit = max(1, min(int(limit), 500))
+        like = f"%{needle}%"
+        with self._lock, self._connection() as connection:
+            rows = connection.execute(
+                "SELECT DISTINCT c.id, c.title, c.copilot_session_id, c.created_at, "
+                "c.updated_at, c.sdk_session_initialized, "
+                "(SELECT COUNT(*) FROM messages m2 WHERE m2.conversation_id = c.id) AS message_count "
+                "FROM conversations c LEFT JOIN messages m ON m.conversation_id = c.id "
+                "WHERE c.title LIKE ? COLLATE NOCASE OR m.content LIKE ? COLLATE NOCASE "
+                "ORDER BY c.updated_at DESC LIMIT ?",
+                (like, like, safe_limit),
+            ).fetchall()
+        return [self._to_conversation(row) for row in rows]
+
+    def export_conversation_markdown(self, conversation_id: str) -> str:
+        conversation = self.get_conversation(conversation_id)
+        if conversation is None:
+            raise KeyError(f"Conversation not found: {conversation_id}")
+        messages = self.get_messages(conversation_id)
+        lines = [f"# {conversation.title}", "", f"- ID: `{conversation.id}`",
+                 f"- Created: {conversation.created_at}", f"- Updated: {conversation.updated_at}",
+                 f"- Messages: {conversation.message_count}", "", "---", ""]
+        for message in messages:
+            lines.append(f"## {message.role.capitalize()} - {message.created_at}")
+            lines.append("")
+            lines.append(message.content)
+            lines.append("")
+        return "\n".join(lines).rstrip() + "\n"
+
+    def backup_database(self, destination):
+        from pathlib import Path as _Path
+        destination_path = _Path(destination).expanduser().resolve()
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock:
+            source = sqlite3.connect(self.database_path)
+            try:
+                target = sqlite3.connect(destination_path)
+                try:
+                    source.backup(target)
+                finally:
+                    target.close()
+            finally:
+                source.close()
+        return destination_path

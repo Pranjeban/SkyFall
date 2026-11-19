@@ -578,3 +578,64 @@ class AzureProfileManager:
             "discovery_method": "canonical_tenant_ids_from_azure_cli_subscription_and_account_metadata",
             "limitation": "This reports canonical tenant IDs represented in the selected Azure CLI profile. A configured tenant domain is retained as a sign-in hint and is not shown as a separate tenant ID. It does not enumerate every directory the user may be invited to unless Azure CLI has been authenticated to those tenants.",
         }
+    def list_management_groups(self, profile_id: str = "all") -> dict[str, Any]:
+        """List Azure management groups visible to the selected profile(s)."""
+        clean = (profile_id or "all").strip()
+        if clean.lower() not in {"all", "*"}:
+            return self._list_management_groups_single(clean)
+        results = [self._list_management_groups_single(p["profile_id"]) for p in self.store.list_profiles()]
+        merged: list[dict[str, Any]] = []
+        for result in results:
+            if result.get("success"):
+                for item in result.get("management_groups", []):
+                    merged.append({**item, "profile_id": result.get("profile_id"), "profile": result.get("profile")})
+        errors = [{"profile_id": r.get("profile_id"), "profile": r.get("profile"), "error": r.get("error")} for r in results if not r.get("success")]
+        successful_count = sum(1 for r in results if r.get("success"))
+        return {
+            "success": successful_count > 0,
+            "profile_id": "all",
+            "profile_count": len(results),
+            "successful_profile_count": successful_count,
+            "failed_profiles": errors,
+            "partial_success": successful_count > 0 and bool(errors),
+            "count": len(merged),
+            "management_groups": merged,
+            "scope": "management_groups_accessible_to_registered_azure_cli_profiles",
+        }
+
+    def _list_management_groups_single(self, profile_id: str) -> dict[str, Any]:
+        profile = self.store.get_profile(profile_id)
+        try:
+            result = self.runner("az", ["account", "management-group", "list", "--output", "json"], timeout_seconds=60, env_overrides=self._env_for(profile_id))
+        except FileNotFoundError as exc:
+            return {"success": False, "profile_id": profile_id, "error": str(exc), "management_groups": []}
+        if not result.succeeded:
+            error = "Management group discovery timed out." if result.timed_out else _friendly_azure_cli_error(result.stderr, "Azure CLI could not list management groups.")
+            return {"success": False, "profile_id": profile_id, "profile": profile["name"], "error": error[:800], "management_groups": []}
+        try:
+            entries = _parse_json(result.stdout, "management-group list")
+        except ValueError as exc:
+            return {"success": False, "profile_id": profile_id, "profile": profile["name"], "error": str(exc), "management_groups": []}
+        if not isinstance(entries, list):
+            return {"success": False, "profile_id": profile_id, "profile": profile["name"], "error": "Unexpected management group response.", "management_groups": []}
+        safe: list[dict[str, Any]] = []
+        for item in entries:
+            if not isinstance(item, dict):
+                continue
+            safe.append({
+                "profile": profile["name"],
+                "profile_id": profile_id,
+                "id": str(item.get("id", "") or ""),
+                "name": str(item.get("name", "") or ""),
+                "display_name": str(item.get("displayName", "") or ""),
+                "tenant_id": str(item.get("tenantId", "") or ""),
+                "type": str(item.get("type", "") or ""),
+            })
+        return {
+            "success": True,
+            "profile_id": profile_id,
+            "profile": profile["name"],
+            "count": len(safe),
+            "management_groups": safe,
+            "scope": "management_groups_accessible_to_this_azure_cli_profile",
+        }
