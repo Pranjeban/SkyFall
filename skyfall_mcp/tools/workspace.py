@@ -73,3 +73,13 @@ def describe_workspace_file(file_id: str) -> str:
         "source_contents_shared": False,
         "analysis_method": "local_static_analysis_only",
     }, ensure_ascii=False, indent=2)
+
+
+from skyfall_workspace.engineering import analyze_workspace as _analyze_workspace
+
+
+def workspace_engineering_analysis(workspace_path: str = "") -> str:
+    """Analyze a local workspace (read-only): file counts, duplicate groups, metadata."""
+    if not workspace_path:
+        return json.dumps({"error": "workspace_path required"}, ensure_ascii=False)
+    return json.dumps(_analyze_workspace(workspace_path), ensure_ascii=False, indent=2)

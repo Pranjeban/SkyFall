@@ -7,6 +7,8 @@ from typing import Any
 
 from skyfall_cloud.powerplatform_resources import (
     PowerPlatformAppInventory,
+    PowerPlatformConnectionInventory,
+    PowerPlatformDataverseMetadataInventory,
     PowerPlatformFlowInventory,
     PowerPlatformSolutionInventory,
 )
@@ -87,6 +89,68 @@ def inventory_power_platform_solutions(
     """Inventory visible solution metadata in one verified Dataverse environment."""
     try:
         payload: dict[str, Any] = PowerPlatformSolutionInventory().inventory(
+            environment_id=environment_id,
+            profile_id=profile_id or None,
+            generate_excel=generate_excel,
+        )
+    except (ValueError, KeyError) as exc:
+        payload = {
+            "success": False,
+            "status": "invalid_request",
+            "error": str(exc),
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    except Exception as exc:
+        payload = {
+            "success": False,
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {str(exc)[:500]}",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def inventory_power_platform_connections(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Power Platform connection metadata in one verified environment."""
+    try:
+        payload: dict[str, Any] = PowerPlatformConnectionInventory().inventory(
+            environment_id=environment_id,
+            profile_id=profile_id or None,
+            generate_excel=generate_excel,
+        )
+    except (ValueError, KeyError) as exc:
+        payload = {
+            "success": False,
+            "status": "invalid_request",
+            "error": str(exc),
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    except Exception as exc:
+        payload = {
+            "success": False,
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {str(exc)[:500]}",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def inventory_dataverse_metadata(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Dataverse table and column metadata in one verified environment."""
+    try:
+        payload: dict[str, Any] = PowerPlatformDataverseMetadataInventory().inventory(
             environment_id=environment_id,
             profile_id=profile_id or None,
             generate_excel=generate_excel,

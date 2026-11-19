@@ -892,11 +892,74 @@ Resources
     location,
     resourceGroup,
     subscriptionId,
+    tagsCount = array_length(bag_keys(tags)),
+    provisioningState = tostring(properties.provisioningState),
     skuName = tostring(sku.name),
     skuTier = tostring(sku.tier),
     managedBy
 | order by type asc, id asc
 """.strip()
+
+    @staticmethod
+    def _normalize_resource_types(
+        resource_type: Any = None,
+        resource_types: Any = None,
+        resource_type_filter: Any = None,
+    ) -> list[str]:
+        values: list[str] = []
+        for candidate in (resource_type, resource_type_filter):
+            if isinstance(candidate, str):
+                values.extend(part.strip() for part in candidate.split(",") if part.strip())
+            elif candidate is not None:
+                values.append(str(candidate).strip())
+        if isinstance(resource_types, (list, tuple, set)):
+            for candidate in resource_types:
+                if isinstance(candidate, str):
+                    values.extend(part.strip() for part in candidate.split(",") if part.strip())
+                elif candidate is not None:
+                    values.append(str(candidate).strip())
+        elif isinstance(resource_types, str):
+            values.extend(part.strip() for part in resource_types.split(",") if part.strip())
+        elif resource_types is not None:
+            values.append(str(resource_types).strip())
+
+        normalized: list[str] = []
+        for value in values:
+            if not value:
+                continue
+            # Keep the filter to the safe Azure resource type grammar. This is
+            # interpolated into KQL only after validation to avoid query injection.
+            if not re.fullmatch(r"[A-Za-z0-9._/\-]+", value):
+                raise ValueError(f"Invalid Azure resource type filter: {value!r}")
+            normalized.append(value)
+        return sorted(set(normalized), key=str.casefold)
+
+    @classmethod
+    def build_resource_query(cls, resource_types: list[str] | None = None) -> str:
+        query = cls.RESOURCE_QUERY
+        if not resource_types:
+            return query
+        # RESOURCE_QUERY is a project/order pipeline; insert the type filter
+        # before projection without changing the safe field subset.
+        filters = " or ".join(f"type =~ '{item}'" for item in resource_types)
+        return (
+            "Resources\n"
+            f"| where {filters}\n"
+            "| project\n"
+            "    id,\n"
+            "    name,\n"
+            "    type,\n"
+            "    kind,\n"
+            "    location,\n"
+            "    resourceGroup,\n"
+            "    subscriptionId,\n"
+            "    tagsCount = array_length(bag_keys(tags)),\n"
+            "    provisioningState = tostring(properties.provisioningState),\n"
+            "    skuName = tostring(sku.name),\n"
+            "    skuTier = tostring(sku.tier),\n"
+            "    managedBy\n"
+            "| order by type asc, id asc"
+        ).strip()
 
     def inventory(
         self,
@@ -904,11 +967,25 @@ Resources
         profile_id: str = "all",
         subscription_ids: Iterable[str] | None = None,
         generate_excel: bool = True,
+        resource_type: Any = None,
+        resource_types: Any = None,
+        resource_type_filter: Any = None,
     ) -> dict[str, Any]:
-        """Discover non-secret resource metadata in enabled, accessible subscriptions."""
+        """Discover non-secret resource metadata in enabled, accessible subscriptions.
+
+        Optional resource type filters restrict the query to safe metadata for
+        selected Azure resource types (for example VMs, storage accounts or SQL
+        servers). Only the safe field subset is ever returned.
+        """
+        resource_type_filters = self._normalize_resource_types(
+            resource_type=resource_type,
+            resource_types=resource_types,
+            resource_type_filter=resource_type_filter,
+        )
         safe_result = {
             "cloud_resources_modified": False,
             "secrets_returned": False,
+            "resource_type_filters": resource_type_filters,
         }
         if os.environ.get("SKYFALL_TEST_MODE") == "1":
             return {
@@ -1000,8 +1077,9 @@ Resources
             try:
                 arm_token = self.token_provider(current_profile_id)
                 with self.http_client_factory() as client:
+                    query = self.build_resource_query(resource_type_filters)
                     rows = self._query_resource_graph(
-                        client, arm_token, subscription_id_list, self.RESOURCE_QUERY
+                        client, arm_token, subscription_id_list, query
                     )
                 for row in rows:
                     resource_id = str(row.get("id") or "").strip()
@@ -1021,6 +1099,8 @@ Resources
                         "resource_type": str(row.get("type") or ""),
                         "kind": str(row.get("kind") or ""),
                         "region": str(row.get("location") or ""),
+                        "tags_count": int(row.get("tagsCount") or 0) if str(row.get("tagsCount") or "").isdigit() else 0,
+                        "provisioning_state": str(row.get("provisioningState") or ""),
                         "sku_name": str(row.get("skuName") or ""),
                         "sku_tier": str(row.get("skuTier") or ""),
                         "managed_by": str(row.get("managedBy") or ""),
@@ -1093,6 +1173,7 @@ Resources
             "resource_count": len(inventory),
             "resource_type_count": len(type_counts),
             "resource_type_counts": type_counts,
+            "resource_type_filters": resource_type_filters,
             "errors": errors,
             "report": {"format": "xlsx", "path": report_path} if generate_excel else None,
             "preview": inventory[:20],
@@ -1102,7 +1183,8 @@ Resources
             "secrets_returned": False,
             "fields_returned": [
                 "resource_id", "name", "resource_type", "kind", "region", "resource_group",
-                "subscription_id", "subscription_name", "tenant_id", "sku_name", "sku_tier", "managed_by",
+                "subscription_id", "subscription_name", "tenant_id", "tags_count",
+                "provisioning_state", "sku_name", "sku_tier", "managed_by",
             ],
             "note": (
                 "Only Resource Graph resource metadata fields are queried. Arbitrary resource properties, "
@@ -1132,7 +1214,8 @@ Resources
                 ("Profile", "profile"), ("Profiles", "profiles"), ("Tenant ID", "tenant_id"),
                 ("Subscription", "subscription_name"), ("Subscription ID", "subscription_id"),
                 ("Resource Group", "resource_group"), ("Name", "name"), ("Type", "resource_type"),
-                ("Kind", "kind"), ("Region", "region"), ("SKU Name", "sku_name"),
+                ("Kind", "kind"), ("Region", "region"), ("Tag Count", "tags_count"),
+                ("Provisioning State", "provisioning_state"), ("SKU Name", "sku_name"),
                 ("SKU Tier", "sku_tier"), ("Managed By", "managed_by"), ("Resource ID", "resource_id"),
             ],
             resources,

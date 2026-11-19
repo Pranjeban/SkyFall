@@ -12,9 +12,9 @@ class CapabilityRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = CapabilityRegistry.default()
 
-    def test_catalogue_contains_twenty_two_enabled_tools(self) -> None:
+    def test_catalogue_contains_forty_nine_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 22)
+        self.assertEqual(len(capabilities), 49)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -40,6 +40,10 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "inventory_azure_resources",
                 "inventory_power_automate_flows",
                 "inventory_power_apps",
+                "check_azure_resource_health",
+                "check_function_app_availability",
+                "detect_power_automate_failures",
+                "detect_inactive_resources",
             },
         )
 

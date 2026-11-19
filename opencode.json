@@ -1,0 +1,139 @@
+{
+    "agents":  {
+                   "orchestrator":  {
+                                        "description":  "Primary SKYFALL engineering coordinator and task router.",
+                                        "mode":  "primary",
+                                        "model":  "opencode/beam-free#medium",
+                                        "steps":  18,
+                                        "permissions":  [
+                                                            {
+                                                                "action":  "subagent",
+                                                                "resource":  "*",
+                                                                "effect":  "allow"
+                                                            }
+                                                        ]
+                                    },
+                   "security-auditor":  {
+                                            "description":  "High-reasoning defensive security analysis.",
+                                            "mode":  "subagent",
+                                            "model":  "opencode/beam-free#high",
+                                            "steps":  22,
+                                            "permissions":  [
+                                                                {
+                                                                    "action":  "edit",
+                                                                    "resource":  "*",
+                                                                    "effect":  "deny"
+                                                                },
+                                                                {
+                                                                    "action":  "shell",
+                                                                    "resource":  "*",
+                                                                    "effect":  "deny"
+                                                                }
+                                                            ]
+                                        },
+                   "reviewer":  {
+                                    "description":  "Independent high-reasoning code review.",
+                                    "mode":  "subagent",
+                                    "model":  "opencode/beam-free#high",
+                                    "steps":  20,
+                                    "permissions":  [
+                                                        {
+                                                            "action":  "edit",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        },
+                                                        {
+                                                            "action":  "shell",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        }
+                                                    ]
+                                },
+                   "architect":  {
+                                     "description":  "Xhigh system architecture and complex design.",
+                                     "mode":  "subagent",
+                                     "model":  "opencode/beam-free#xhigh",
+                                     "steps":  28,
+                                     "permissions":  [
+                                                         {
+                                                             "action":  "edit",
+                                                             "resource":  "*",
+                                                             "effect":  "deny"
+                                                         },
+                                                         {
+                                                             "action":  "shell",
+                                                             "resource":  "*",
+                                                             "effect":  "deny"
+                                                         }
+                                                     ]
+                                 },
+                   "explorer":  {
+                                    "description":  "Low-reasoning read-only repository exploration.",
+                                    "mode":  "subagent",
+                                    "model":  "opencode/beam-free#low",
+                                    "steps":  12,
+                                    "permissions":  [
+                                                        {
+                                                            "action":  "edit",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        },
+                                                        {
+                                                            "action":  "shell",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        }
+                                                    ]
+                                },
+                   "researcher":  {
+                                      "description":  "Technical documentation and API research.",
+                                      "mode":  "subagent",
+                                      "model":  "opencode/beam-free#medium",
+                                      "steps":  16,
+                                      "permissions":  [
+                                                          {
+                                                              "action":  "edit",
+                                                              "resource":  "*",
+                                                              "effect":  "deny"
+                                                          },
+                                                          {
+                                                              "action":  "shell",
+                                                              "resource":  "*",
+                                                              "effect":  "deny"
+                                                          }
+                                                      ]
+                                  },
+                   "tester":  {
+                                  "description":  "Testing, regression validation and quality assurance.",
+                                  "mode":  "subagent",
+                                  "model":  "opencode/beam-free#medium",
+                                  "steps":  18,
+                                  "permissions":  [
+                                                      {
+                                                          "action":  "edit",
+                                                          "resource":  "*",
+                                                          "effect":  "ask"
+                                                      },
+                                                      {
+                                                          "action":  "shell",
+                                                          "resource":  "*",
+                                                          "effect":  "ask"
+                                                      }
+                                                  ]
+                              },
+                   "debugger":  {
+                                    "description":  "High-reasoning root-cause investigation.",
+                                    "mode":  "subagent",
+                                    "model":  "opencode/beam-free#high",
+                                    "steps":  22
+                                },
+                   "developer":  {
+                                     "description":  "High-reasoning feature implementation and engineering.",
+                                     "mode":  "subagent",
+                                     "model":  "opencode/beam-free#high",
+                                     "steps":  24
+                                 }
+               },
+    "$schema":  "https://opencode.ai/config.json",
+    "default_agent":  "orchestrator"
+}

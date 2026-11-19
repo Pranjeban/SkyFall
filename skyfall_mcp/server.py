@@ -12,6 +12,7 @@ from skyfall_mcp.tools.workspace import (
     get_workspace_index_status as _get_workspace_index_status,
     list_workspaces as _list_workspaces,
     search_workspace_files as _search_workspace_files,
+    workspace_engineering_analysis as _workspace_engineering_analysis,
 )
 from skyfall_mcp.tools.accounts import (
     configure_powerplatform_app as _configure_powerplatform_app,
@@ -31,7 +32,9 @@ from skyfall_mcp.tools.azure_resources import (
     inventory_azure_resources as _inventory_azure_resources,
 )
 from skyfall_mcp.tools.powerplatform_resources import (
+    inventory_dataverse_metadata as _inventory_dataverse_metadata,
     inventory_power_apps as _inventory_power_apps,
+    inventory_power_platform_connections as _inventory_power_platform_connections,
     inventory_power_platform_solutions as _inventory_power_platform_solutions,
     inventory_power_automate_flows as _inventory_power_automate_flows,
 )
@@ -39,6 +42,18 @@ from skyfall_mcp.tools.core import (
     describe_skyfall_capability as _describe_skyfall_capability,
     get_skyfall_status as _get_skyfall_status,
     list_skyfall_capabilities as _list_skyfall_capabilities,
+)
+from skyfall_mcp.tools.monitoring import (
+    check_azure_resource_health as _check_azure_resource_health,
+    check_function_app_availability as _check_function_app_availability,
+    detect_inactive_resources as _detect_inactive_resources,
+    detect_power_automate_failures as _detect_power_automate_failures,
+)
+from skyfall_mcp.tools.reporting import (
+    generate_csv_report as _generate_csv_report,
+    generate_json_report as _generate_json_report,
+    generate_markdown_report as _generate_markdown_report,
+    generate_report as _generate_report,
 )
 
 # MCP stdio uses stdout for protocol frames. All diagnostics must go to stderr.
@@ -104,6 +119,12 @@ def search_workspace_files(
 def describe_workspace_file(file_id: str) -> str:
     """Describe one indexed file using static metadata; source code is never returned."""
     return _describe_workspace_file(file_id)
+
+
+@mcp.tool(title="Workspace engineering analysis")
+def workspace_engineering_analysis(workspace_path: str = "") -> str:
+    """Analyze a local workspace read-only: file counts, duplicate groups, metadata."""
+    return _workspace_engineering_analysis(workspace_path)
 
 
 @mcp.tool(title="Browse Azure accounts")
@@ -189,14 +210,17 @@ def inventory_azure_resources(
     profile_id: str = "all",
     subscription_ids: list[str] | None = None,
     generate_excel: bool = True,
+    resource_type: str = "",
+    resource_types: list[str] | None = None,
 ) -> str:
     """Inventory non-secret Azure resource metadata across accessible subscriptions.
 
-    Returns resource IDs, names, types, locations, resource groups, subscription
-    context, SKU names/tiers, and managed-by IDs only. It does not inspect
-    arbitrary resource properties, tags, settings, keys, or diagnostic data.
+    Optional resource_type or resource_types filters restrict results to selected
+    Azure resource types. Returns resource IDs, names, types, locations, resource
+    groups, subscription context, tag counts, provisioning state, SKU names/tiers,
+    and managed-by IDs only.
     """
-    return _inventory_azure_resources(profile_id, subscription_ids, generate_excel)
+    return _inventory_azure_resources(profile_id, subscription_ids, generate_excel, resource_type, resource_types)
 
 
 @mcp.tool(title="Check Microsoft sign-in progress")
@@ -245,6 +269,99 @@ def inventory_power_platform_solutions(
     payloads and secrets are not downloaded.
     """
     return _inventory_power_platform_solutions(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Power Platform connection inventory")
+def inventory_power_platform_connections(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Power Platform connection metadata for an environment."""
+    return _inventory_power_platform_connections(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Dataverse metadata inventory")
+def inventory_dataverse_metadata(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Dataverse table and column metadata for an environment."""
+    return _inventory_dataverse_metadata(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Check Azure resource health")
+def check_azure_resource_health() -> str:
+    """Read-only Azure resource health check skeleton."""
+    return _check_azure_resource_health()
+
+
+@mcp.tool(title="Check Function App availability")
+def check_function_app_availability() -> str:
+    """Read-only Function App availability check skeleton."""
+    return _check_function_app_availability()
+
+
+@mcp.tool(title="Detect Power Automate failures")
+def detect_power_automate_failures(environment_id: str = "") -> str:
+    """Metadata-only Power Automate failure detection skeleton."""
+    return _detect_power_automate_failures(environment_id)
+
+
+@mcp.tool(title="Detect inactive resources and flows")
+def detect_inactive_resources(inactive_days: int = 30) -> str:
+    """Read-only inactive resource and flow detection skeleton."""
+    return _detect_inactive_resources(inactive_days)
+
+
+@mcp.tool(title="Generate CSV report")
+def generate_csv_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a CSV report with the consistent SKYFALL report schema."""
+    return _generate_csv_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate JSON report")
+def generate_json_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a JSON report with the consistent SKYFALL report schema."""
+    return _generate_json_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate Markdown report")
+def generate_markdown_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a Markdown report with the consistent SKYFALL report schema."""
+    return _generate_markdown_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate report")
+def generate_report(
+    output_path: str,
+    output_format: str = "csv",
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a report in CSV, JSON, or Markdown format."""
+    return _generate_report(output_path, output_format, title, rows, columns, metadata)
 
 
 if __name__ == "__main__":
