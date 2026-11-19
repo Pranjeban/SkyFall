@@ -12,8 +12,10 @@ from skyfall_mcp.tools.workspace import (
     get_workspace_index_status as _get_workspace_index_status,
     list_workspaces as _list_workspaces,
     search_workspace_files as _search_workspace_files,
+    workspace_engineering_analysis as _workspace_engineering_analysis,
 )
 from skyfall_mcp.tools.accounts import (
+    configure_powerplatform_app as _configure_powerplatform_app,
     get_azure_auth_status as _get_azure_auth_status,
     get_microsoft_auth_job_status as _get_microsoft_auth_job_status,
     get_powerplatform_auth_status as _get_powerplatform_auth_status,
@@ -27,14 +29,31 @@ from skyfall_mcp.tools.accounts import (
 )
 from skyfall_mcp.tools.azure_resources import (
     inventory_azure_function_apps as _inventory_azure_function_apps,
+    inventory_azure_resources as _inventory_azure_resources,
 )
 from skyfall_mcp.tools.powerplatform_resources import (
+    inventory_dataverse_metadata as _inventory_dataverse_metadata,
+    inventory_power_apps as _inventory_power_apps,
+    inventory_power_platform_connections as _inventory_power_platform_connections,
+    inventory_power_platform_solutions as _inventory_power_platform_solutions,
     inventory_power_automate_flows as _inventory_power_automate_flows,
 )
 from skyfall_mcp.tools.core import (
     describe_skyfall_capability as _describe_skyfall_capability,
     get_skyfall_status as _get_skyfall_status,
     list_skyfall_capabilities as _list_skyfall_capabilities,
+)
+from skyfall_mcp.tools.monitoring import (
+    check_azure_resource_health as _check_azure_resource_health,
+    check_function_app_availability as _check_function_app_availability,
+    detect_inactive_resources as _detect_inactive_resources,
+    detect_power_automate_failures as _detect_power_automate_failures,
+)
+from skyfall_mcp.tools.reporting import (
+    generate_csv_report as _generate_csv_report,
+    generate_json_report as _generate_json_report,
+    generate_markdown_report as _generate_markdown_report,
+    generate_report as _generate_report,
 )
 
 # MCP stdio uses stdout for protocol frames. All diagnostics must go to stderr.
@@ -43,9 +62,9 @@ logging.basicConfig(stream=sys.stderr, level=logging.WARNING, format="%(levelnam
 mcp = MCPServer(
     "SKYFALL Local Intelligence",
     instructions=(
-    "SKYFALL v0.9.1 MCP server. Exposes read-only core status/capability tools, "
+    "SKYFALL v0.9.2 MCP server. Exposes read-only core status/capability tools, "
         "metadata-only workspace discovery, Azure CLI account/subscription discovery, "
-    "Power Platform CLI profile/environment discovery, read-only Azure Function App and Power Automate cloud-flow inventory with local XLSX reporting, and explicit user-requested "
+        "Power Platform account/environment discovery, read-only Azure resource and Function App plus Power Apps, Dataverse solution and cloud-flow inventory with local XLSX reporting, and explicit user-requested "
     "interactive Microsoft sign-in jobs. Azure profiles are isolated by AZURE_CONFIG_DIR. "
     "Login tools may open a Microsoft sign-in page only when the user explicitly asks "
     "to connect or sign in. They do not create, update or delete cloud resources. "
@@ -102,6 +121,12 @@ def describe_workspace_file(file_id: str) -> str:
     return _describe_workspace_file(file_id)
 
 
+@mcp.tool(title="Workspace engineering analysis")
+def workspace_engineering_analysis(workspace_path: str = "") -> str:
+    """Analyze a local workspace read-only: file counts, duplicate groups, metadata."""
+    return _workspace_engineering_analysis(workspace_path)
+
+
 @mcp.tool(title="Browse Azure accounts")
 def list_azure_profiles() -> str:
     """List local SKYFALL Azure CLI profile metadata without credential material."""
@@ -128,20 +153,26 @@ def list_azure_tenants(profile_id: str = "all", refresh: bool = False) -> str:
 
 @mcp.tool(title="Browse Power Platform accounts")
 def list_powerplatform_auth_profiles() -> str:
-    """List existing PAC CLI profiles and identify the active profile without switching it."""
+    """List saved SKYFALL-local Microsoft OAuth account profiles."""
     return _list_powerplatform_auth_profiles()
 
 
 @mcp.tool(title="Check Power Platform connection")
 def get_powerplatform_auth_status() -> str:
-    """Report the active PAC CLI authentication profile without exposing tokens."""
+    """Report the selected SKYFALL Microsoft OAuth profile without exposing tokens."""
     return _get_powerplatform_auth_status()
 
 
 @mcp.tool(title="View Power Platform environments")
 def list_powerplatform_environments() -> str:
-    """List environments visible to pac admin list for the active PAC CLI profile."""
+    """List environments available to the selected saved Microsoft account."""
     return _list_powerplatform_environments()
+
+
+@mcp.tool(title="Configure legacy Power Platform OAuth app")
+def configure_powerplatform_app(client_id: str) -> str:
+    """Configure the legacy MSAL profile path. New Power Platform profiles use the isolated Azure CLI login."""
+    return _configure_powerplatform_app(client_id)
 
 
 @mcp.tool(title="Connect an Azure account")
@@ -153,13 +184,10 @@ def start_azure_login(profile_name: str = "", tenant_id: str = "", profile_id: s
 @mcp.tool(title="Connect a Power Platform account")
 def start_powerplatform_login(
     profile_name: str,
-    environment: str = "",
-    confirm_global_profile_activation: bool = False,
+    tenant: str = "",
 ) -> str:
-    """Create a PAC CLI profile and start interactive sign-in only after the user explicitly confirms the possible global active-profile change. The tenant is selected by the signed-in account; environment is optional."""
-    return _start_powerplatform_login(
-        profile_name, environment, confirm_global_profile_activation
-    )
+    """Start isolated Azure browser sign-in and list accessible Power Platform environments."""
+    return _start_powerplatform_login(profile_name, tenant)
 
 
 @mcp.tool(title="Discover Azure Function Apps")
@@ -177,6 +205,24 @@ def inventory_azure_function_apps(
     return _inventory_azure_function_apps(profile_id, subscription_ids, generate_excel)
 
 
+@mcp.tool(title="Inventory Azure resources")
+def inventory_azure_resources(
+    profile_id: str = "all",
+    subscription_ids: list[str] | None = None,
+    generate_excel: bool = True,
+    resource_type: str = "",
+    resource_types: list[str] | None = None,
+) -> str:
+    """Inventory non-secret Azure resource metadata across accessible subscriptions.
+
+    Optional resource_type or resource_types filters restrict results to selected
+    Azure resource types. Returns resource IDs, names, types, locations, resource
+    groups, subscription context, tag counts, provisioning state, SKU names/tiers,
+    and managed-by IDs only.
+    """
+    return _inventory_azure_resources(profile_id, subscription_ids, generate_excel, resource_type, resource_types)
+
+
 @mcp.tool(title="Check Microsoft sign-in progress")
 def get_microsoft_auth_job_status(job_id: str) -> str:
     """Check a started Azure or Power Platform sign-in job and return discovered non-secret tenant, subscription and environment metadata after completion."""
@@ -191,10 +237,131 @@ def inventory_power_automate_flows(
 ) -> str:
     """Discover cloud-flow metadata in one explicitly selected environment.
 
-    Uses the active PAC CLI profile and creates a human-readable local Excel
-    report. Flow definitions, connection details and secrets are excluded.
+    Uses the selected Microsoft OAuth profile and creates a local Excel report.
+    Flow definitions, connection details and secrets are excluded.
     """
     return _inventory_power_automate_flows(environment_id, environment_name, generate_excel)
+
+
+@mcp.tool(title="Generate Power Apps inventory")
+def inventory_power_apps(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Power Apps metadata for an environment discovered for the selected account.
+
+    Requires access to the environment and permissions to read Power Apps as an
+    administrator. App definitions, connection details, and secrets are excluded.
+    """
+    return _inventory_power_apps(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Power Platform solution inventory")
+def inventory_power_platform_solutions(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory solution names, versions, publishers and management state in one environment.
+
+    Uses allow-listed Dataverse solution metadata only; solution files, components,
+    payloads and secrets are not downloaded.
+    """
+    return _inventory_power_platform_solutions(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Power Platform connection inventory")
+def inventory_power_platform_connections(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Power Platform connection metadata for an environment."""
+    return _inventory_power_platform_connections(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Generate Dataverse metadata inventory")
+def inventory_dataverse_metadata(
+    environment_id: str,
+    profile_id: str = "",
+    generate_excel: bool = True,
+) -> str:
+    """Inventory Dataverse table and column metadata for an environment."""
+    return _inventory_dataverse_metadata(environment_id, profile_id, generate_excel)
+
+
+@mcp.tool(title="Check Azure resource health")
+def check_azure_resource_health() -> str:
+    """Read-only Azure resource health check skeleton."""
+    return _check_azure_resource_health()
+
+
+@mcp.tool(title="Check Function App availability")
+def check_function_app_availability() -> str:
+    """Read-only Function App availability check skeleton."""
+    return _check_function_app_availability()
+
+
+@mcp.tool(title="Detect Power Automate failures")
+def detect_power_automate_failures(environment_id: str = "") -> str:
+    """Metadata-only Power Automate failure detection skeleton."""
+    return _detect_power_automate_failures(environment_id)
+
+
+@mcp.tool(title="Detect inactive resources and flows")
+def detect_inactive_resources(inactive_days: int = 30) -> str:
+    """Read-only inactive resource and flow detection skeleton."""
+    return _detect_inactive_resources(inactive_days)
+
+
+@mcp.tool(title="Generate CSV report")
+def generate_csv_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a CSV report with the consistent SKYFALL report schema."""
+    return _generate_csv_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate JSON report")
+def generate_json_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a JSON report with the consistent SKYFALL report schema."""
+    return _generate_json_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate Markdown report")
+def generate_markdown_report(
+    output_path: str,
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a Markdown report with the consistent SKYFALL report schema."""
+    return _generate_markdown_report(output_path, title, rows, columns, metadata)
+
+
+@mcp.tool(title="Generate report")
+def generate_report(
+    output_path: str,
+    output_format: str = "csv",
+    title: str = "SKYFALL Report",
+    rows: list | None = None,
+    columns: list | None = None,
+    metadata: dict | None = None,
+) -> str:
+    """Generate a report in CSV, JSON, or Markdown format."""
+    return _generate_report(output_path, output_format, title, rows, columns, metadata)
 
 
 if __name__ == "__main__":

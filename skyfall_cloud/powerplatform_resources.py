@@ -1,35 +1,30 @@
-"""Read-only Power Automate cloud-flow inventory and local XLSX reporting.
-
-Flow discovery uses the documented `pac power-automate list-cloud-flows`
-Power Platform CLI command (currently documented as Preview). The command
-runs against the currently active PAC CLI profile and an explicit environment
-ID. SKYFALL never switches the active PAC profile behind the user's back.
-Only allow-listed metadata fields are exported; definitions, connections,
-credentials and action payloads are intentionally excluded.
-"""
+"""Read-only Dataverse cloud-flow inventory and local XLSX reporting."""
 
 from __future__ import annotations
 
 import json
 import os
 import re
-import subprocess
 import uuid
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Any, Mapping
+
+import httpx
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-from .command_runner import CommandResult, run_cli
-from .powerplatform import PowerPlatformDiscovery, _decode_json_output
+from .powerplatform_accounts import (
+    API_BASE,
+    API_SCOPE,
+    API_VERSION,
+    PowerPlatformApi,
+    _safe_next_link,
+)
 from .reporting import build_report_path, safe_excel_text
-
-
-Runner = Callable[..., CommandResult]
 
 
 class PowerPlatformInventoryError(RuntimeError):
@@ -80,7 +75,7 @@ def _first_scalar(item: Mapping[str, Any], paths: tuple[str, ...], *, limit: int
 
 
 def _extract_flow_rows(payload: Any) -> list[dict[str, Any]]:
-    """Extract records from known PAC CLI JSON response shapes."""
+    """Extract safe rows from Dataverse workflow metadata response shapes."""
     records: Any = None
     if isinstance(payload, list):
         records = payload
@@ -101,7 +96,7 @@ def _extract_flow_rows(payload: Any) -> list[dict[str, Any]]:
             raise PowerPlatformInventoryError(_as_safe_scalar(message, limit=700))
     if not isinstance(records, list):
         raise PowerPlatformInventoryError(
-            "PAC CLI returned an unrecognized cloud-flow JSON response. "
+            "Dataverse returned an unrecognized cloud-flow metadata response. "
             "No raw response content was added to SKYFALL memory or chat."
         )
 
@@ -227,18 +222,12 @@ def _status_bucket(value: str) -> str:
 class PowerPlatformFlowInventory:
     """Inventory cloud flows in an explicitly selected environment."""
 
-    def __init__(
-        self,
-        *,
-        project_root: str | Path | None = None,
-        runner: Runner = run_cli,
-        discovery: PowerPlatformDiscovery | None = None,
-    ) -> None:
+    def __init__(self, *, project_root: str | Path | None = None, api: PowerPlatformApi | None = None) -> None:
         self.project_root = Path(
             project_root or os.environ.get("SKYFALL_ROOT") or Path(__file__).resolve().parents[1]
         ).expanduser().resolve()
-        self.runner = runner
-        self.discovery = discovery or PowerPlatformDiscovery(runner=runner)
+        self.api = api or PowerPlatformApi()
+        self.accounts = self.api.store
 
     @staticmethod
     def _validate_environment_id(environment_id: str) -> str:
@@ -257,6 +246,8 @@ class PowerPlatformFlowInventory:
         *,
         environment_id: str,
         environment_name: str = "",
+        environment_url: str = "",
+        profile_id: str | None = None,
         generate_excel: bool = True,
     ) -> dict[str, Any]:
         if os.environ.get("SKYFALL_TEST_MODE") == "1":
@@ -270,55 +261,30 @@ class PowerPlatformFlowInventory:
             }
 
         resolved_environment_id = self._validate_environment_id(environment_id)
-        auth = self.discovery.get_auth_status()
-        if not auth.get("authenticated"):
+        selected_profile_id = profile_id or self.accounts.get_active_profile_id()
+        active_profile = self.accounts.get_profile(selected_profile_id) if selected_profile_id else None
+        if not active_profile:
             return {
                 "success": False,
                 "status": "not_authenticated",
-                "error": "No active PAC CLI profile is authenticated. Connect a Power Platform account first.",
+                "error": "No saved Microsoft account is selected. Add or select a Power Platform account first.",
                 "cloud_resources_modified": False,
                 "secrets_returned": False,
                 "flow_definitions_read": False,
             }
-        active_profile = auth.get("active_profile") or {}
-
-        try:
-            result = self.runner(
-                "pac",
-                [
-                    "power-automate",
-                    "list-cloud-flows",
-                    "--environment",
-                    resolved_environment_id,
-                    "--json",
-                ],
-                timeout_seconds=180,
+        if not environment_url:
+            discovered = self.api.list_environments(selected_profile_id)
+            match = next(
+                (item for item in discovered.get("environments", []) if str(item.get("environment_id")) == resolved_environment_id),
+                None,
             )
-        except FileNotFoundError as exc:
-            raise PowerPlatformInventoryError(
-                "Power Platform CLI (pac) was not found on PATH."
-            ) from exc
-        if not result.succeeded:
-            detail = (result.stderr or result.stdout or "").strip()
-            if result.timed_out:
-                message = "Power Automate flow inventory timed out. Retry with a smaller environment or check PAC CLI responsiveness."
-            elif "not logged" in detail.casefold() or "authentication" in detail.casefold() or "sign in" in detail.casefold():
-                message = "The active PAC CLI profile is no longer authenticated. Reconnect the Power Platform account and retry."
-            elif "403" in detail or "forbidden" in detail.casefold() or "unauthorized" in detail.casefold():
-                message = (
-                    "The active account does not have sufficient permission to enumerate flows in this environment. "
-                    "Verify the required Power Platform environment/admin access."
-                )
-            elif "404" in detail or "not found" in detail.casefold():
-                message = "The selected environment was not found or does not support this flow inventory endpoint. Verify its environment ID."
-            else:
-                message = "PAC CLI could not retrieve cloud flows. Check the selected environment, PAC CLI version and account permissions."
-            raise PowerPlatformInventoryError(message)
-
+            if match:
+                environment_url = str(match.get("environment_url") or "")
+                environment_name = environment_name or str(match.get("name") or "")
         try:
-            raw_payload = _decode_json_output("\n".join(part for part in (result.stdout, result.stderr) if part))
-            flows = _extract_flow_rows(raw_payload)
-        except (ValueError, PowerPlatformInventoryError) as exc:
+            raw_rows = self.api.list_flows(selected_profile_id, environment_url)
+            flows = _extract_flow_rows({"value": raw_rows})
+        except (ValueError, RuntimeError, httpx.HTTPError) as exc:
             raise PowerPlatformInventoryError(str(exc)) from exc
 
         for flow in flows:
@@ -351,9 +317,9 @@ class PowerPlatformFlowInventory:
                 "environment_id": resolved_environment_id,
             },
             "active_profile": {
-                "label": _as_safe_scalar(active_profile.get("label") or active_profile.get("environment_url") or "PAC CLI profile", limit=120),
-                "user": _as_safe_scalar(active_profile.get("user") or "", limit=160),
-                "index": active_profile.get("index"),
+                "label": _as_safe_scalar(active_profile.get("name") or "Microsoft account", limit=120),
+                "user": _as_safe_scalar(active_profile.get("username") or "", limit=160),
+                "profile_id": active_profile.get("profile_id"),
             },
             "flow_count": len(flows),
             "enabled_count": status_counts.get("Enabled", 0),
@@ -377,17 +343,13 @@ class PowerPlatformFlowInventory:
                 }
                 for item in flows[:10]
             ],
-            "data_source": "PAC CLI pac power-automate list-cloud-flows --json (Preview command)",
-            "coverage": "Cloud flows returned by the currently active PAC CLI profile for the explicitly selected environment; visibility depends on the signed-in user's permissions.",
+            "data_source": "Microsoft Dataverse Web API (workflow table; metadata columns only)",
+            "coverage": "Solution cloud flows visible to the selected Microsoft account in the explicitly selected Dataverse environment. My Flows is not supported by Microsoft's documented code path.",
             "flow_definitions_read": False,
             "connection_details_read": False,
             "secrets_returned": False,
             "cloud_resources_modified": False,
-            "note": (
-                "SKYFALL exports allow-listed cloud-flow metadata only. Flow definitions, action payloads, "
-                "connection details, credentials and secrets are not read or included. The PAC CLI command "
-                "is currently documented by Microsoft as Preview."
-            ),
+            "note": "SKYFALL requests allow-listed workflow metadata columns only. Flow definitions, action payloads, connection details, credentials and secrets are not read or included.",
         }
 
     def _write_excel_report(
@@ -415,8 +377,8 @@ class PowerPlatformFlowInventory:
         overview.append(["Generated (local)", generated_local.isoformat(timespec="seconds")])
         overview.append(["Environment", environment_name])
         overview.append(["Environment ID", environment_id])
-        overview.append(["PAC CLI profile", _as_safe_scalar(active_profile.get("label") or active_profile.get("environment_url") or "Active PAC profile", limit=160)])
-        overview.append(["Signed-in user", _as_safe_scalar(active_profile.get("user") or "Not supplied", limit=160)])
+        overview.append(["Microsoft account profile", _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)])
+        overview.append(["Signed-in user", _as_safe_scalar(active_profile.get("username") or "Not supplied", limit=160)])
         overview.append(["Total cloud flows discovered", len(flows)])
         overview.append(["Enabled flows", status_counts.get("Enabled", 0)])
         overview.append(["Disabled / suspended flows", status_counts.get("Disabled / Suspended", 0)])
@@ -425,8 +387,8 @@ class PowerPlatformFlowInventory:
         overview.append(["Cloud changes performed", "No — read-only inventory"])
         overview.append(["Flow definitions / action payloads read", "No"])
         overview.append(["Connection details / secrets read", "No"])
-        overview.append(["Data source", "PAC CLI: pac power-automate list-cloud-flows --json (Preview)"])
-        overview.append(["Coverage", "Flows visible to the active PAC CLI profile in the selected environment; permissions determine coverage."])
+        overview.append(["Data source", "Dataverse Web API: workflow metadata columns only"])
+        overview.append(["Coverage", "Cloud flows visible to the selected Microsoft account in the selected environment; permissions determine coverage."])
         overview.append([])
         overview.append(["Flows by status", "Count"])
         for label, count in sorted(status_counts.items(), key=lambda pair: pair[0].casefold()):
@@ -489,10 +451,9 @@ class PowerPlatformFlowInventory:
             [("Topic", "topic"), ("Details", "details")],
             [
                 {"topic": "Environment", "details": f"{environment_name} ({environment_id})"},
-                {"topic": "PAC CLI profile", "details": _as_safe_scalar(active_profile.get("label") or "Active PAC profile", limit=160)},
-                {"topic": "Inventory scope", "details": "Cloud flows visible to the active profile in the explicitly selected environment."},
+                {"topic": "Microsoft account profile", "details": _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)},
+                {"topic": "Inventory scope", "details": "Solution cloud flows visible to the selected Microsoft account in the explicitly selected environment. My Flows is not supported by Microsoft's documented code path."},
                 {"topic": "Permissions", "details": "The signed-in user's permissions determine which flow records can be listed."},
-                {"topic": "Preview status", "details": "Microsoft currently documents pac power-automate list-cloud-flows as a Preview command."},
                 {"topic": "Privacy", "details": "Flow definitions, action payloads, connection details, credentials and secrets are not read or exported."},
                 {"topic": "Changes", "details": "No cloud resources were created, changed or deleted."},
             ],
@@ -555,3 +516,447 @@ class PowerPlatformFlowInventory:
                 for cell in column_cells[:300]:
                     width = max(width, min(len(str(cell.value or "")) + 2, 48))
                 sheet.column_dimensions[letter].width = min(width, 48)
+
+
+class PowerPlatformAppInventory:
+    """Read-only inventory of Power Apps metadata in one verified environment."""
+
+    def __init__(self, *, project_root: str | Path | None = None, api: PowerPlatformApi | None = None) -> None:
+        self.project_root = Path(
+            project_root or os.environ.get("SKYFALL_ROOT") or Path(__file__).resolve().parents[1]
+        ).expanduser().resolve()
+        self.api = api or PowerPlatformApi()
+        self.accounts = self.api.store
+
+    def inventory(
+        self,
+        *,
+        environment_id: str,
+        profile_id: str | None = None,
+        generate_excel: bool = True,
+    ) -> dict[str, Any]:
+        safe_result = {"cloud_resources_modified": False, "secrets_returned": False}
+        if os.environ.get("SKYFALL_TEST_MODE") == "1":
+            return {
+                **safe_result,
+                "success": False,
+                "status": "blocked_test_mode",
+                "error": "External Power Platform app inventory is disabled in SKYFALL_TEST_MODE.",
+            }
+
+        try:
+            resolved_environment_id = str(uuid.UUID((environment_id or "").strip()))
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("Select a valid environment GUID from SKYFALL's discovered environment list.") from exc
+
+        selected_profile_id = profile_id or self.accounts.get_active_profile_id()
+        active_profile = self.accounts.get_profile(selected_profile_id) if selected_profile_id else None
+        if not active_profile:
+            return {
+                **safe_result,
+                "success": False,
+                "status": "not_authenticated",
+                "error": "No saved Microsoft account is selected. Add or select a Power Platform account first.",
+            }
+
+        discovered = self.api.list_environments(selected_profile_id)
+        if not discovered.get("success"):
+            return {
+                **safe_result,
+                "success": False,
+                "status": "environment_discovery_failed",
+                "error": str(discovered.get("error") or "Could not verify the selected Power Platform environment."),
+                "diagnostic_code": discovered.get("diagnostic_code"),
+            }
+        environment = next(
+            (
+                item for item in discovered.get("environments", [])
+                if str(item.get("environment_id") or "").casefold() == resolved_environment_id.casefold()
+            ),
+            None,
+        )
+        if environment is None:
+            return {
+                **safe_result,
+                "success": False,
+                "status": "environment_not_accessible",
+                "error": "The requested environment was not returned for the selected Microsoft account. Refresh environments and select an accessible environment.",
+            }
+
+        token = self.api._access_token(selected_profile_id, [API_SCOPE])
+        url = f"{API_BASE}/powerapps/environments/{resolved_environment_id}/apps"
+        params: dict[str, Any] | None = {"api-version": API_VERSION, "$top": 100}
+        apps: list[dict[str, Any]] = []
+        page_count = 0
+        while url:
+            page_count += 1
+            if page_count > 100:
+                raise PowerPlatformInventoryError("Power Apps inventory exceeded the 100-page safety limit.")
+            try:
+                response = self.api.http.get(
+                    url,
+                    params=params,
+                    headers={"Authorization": f"Bearer {token}", "Accept": "application/json"},
+                    timeout=45,
+                )
+            except httpx.TimeoutException as exc:
+                raise PowerPlatformInventoryError("Power Apps inventory request timed out.") from exc
+            except httpx.HTTPError as exc:
+                raise PowerPlatformInventoryError("Could not reach the Power Platform apps API. Check network access and proxy settings.") from exc
+            params = None
+            if response.status_code >= 400:
+                status = response.status_code
+                if status in (401, 403):
+                    message = "Microsoft denied Power Apps inventory. Check Power Platform app read permissions and this account's environment access."
+                elif status == 404:
+                    message = "The Power Apps endpoint or selected environment was not found. Refresh environment discovery and try again."
+                elif status == 429:
+                    message = "Microsoft throttled Power Apps inventory. Wait briefly, then retry."
+                else:
+                    message = f"Power Platform app inventory failed (HTTP {status}). Check the API version and account permissions."
+                raise PowerPlatformInventoryError(message)
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise PowerPlatformInventoryError("Power Apps API returned invalid JSON.") from exc
+            if not isinstance(payload, dict) or not isinstance(payload.get("value", []), list):
+                raise PowerPlatformInventoryError("Power Apps API returned an unexpected response shape.")
+            for item in payload.get("value", []):
+                if not isinstance(item, dict):
+                    continue
+                properties = item.get("properties") if isinstance(item.get("properties"), dict) else {}
+                owner = properties.get("owner") if isinstance(properties.get("owner"), dict) else {}
+                created_by = properties.get("createdBy") if isinstance(properties.get("createdBy"), dict) else {}
+                environment_details = properties.get("environment") if isinstance(properties.get("environment"), dict) else {}
+                app_id = _as_safe_scalar(item.get("name") or item.get("id"), limit=200)
+                if not app_id:
+                    continue
+                apps.append({
+                    "app_id": app_id,
+                    "display_name": _as_safe_scalar(properties.get("displayName") or item.get("name") or "Unnamed app", limit=240),
+                    "app_type": _as_safe_scalar(item.get("type"), limit=120),
+                    "primary_form_factor": _as_safe_scalar((item.get("tags") or {}).get("primaryFormFactor") if isinstance(item.get("tags"), dict) else "", limit=80),
+                    "app_version": _as_safe_scalar(properties.get("appVersion"), limit=100),
+                    "owner_name": _as_safe_scalar(owner.get("displayName"), limit=160),
+                    "owner_email": _as_safe_scalar(owner.get("email") or owner.get("userPrincipalName"), limit=200),
+                    "created_by": _as_safe_scalar(created_by.get("displayName") or created_by.get("email"), limit=180),
+                    "created_on": _as_safe_scalar(properties.get("createdTime"), limit=80),
+                    "modified_on": _as_safe_scalar(properties.get("lastModifiedTime"), limit=80),
+                    "shared_users_count": properties.get("sharedUsersCount", 0) if isinstance(properties.get("sharedUsersCount", 0), int) else 0,
+                    "shared_groups_count": properties.get("sharedGroupsCount", 0) if isinstance(properties.get("sharedGroupsCount", 0), int) else 0,
+                    "environment_id": _as_safe_scalar(environment_details.get("id") or resolved_environment_id, limit=80),
+                    "environment_name": _as_safe_scalar(environment_details.get("name") or environment.get("name"), limit=180),
+                })
+            try:
+                url = _safe_next_link(url, payload.get("nextLink"), "api.powerplatform.com")
+            except RuntimeError as exc:
+                raise PowerPlatformInventoryError(str(exc)) from exc
+
+        apps.sort(key=lambda row: (row["display_name"].casefold(), row["app_id"].casefold()))
+        report_path: str | None = None
+        worksheets: list[str] = []
+        if generate_excel:
+            report_path, worksheets = self._write_excel_report(
+                apps=apps,
+                environment_id=resolved_environment_id,
+                environment_name=str(environment.get("name") or "Selected Environment"),
+                active_profile=active_profile,
+            )
+        return {
+            **safe_result,
+            "success": True,
+            "status": "success",
+            "operation": "power_apps_inventory",
+            "environment": {
+                "name": str(environment.get("name") or "Selected Environment"),
+                "environment_id": resolved_environment_id,
+            },
+            "active_profile": {
+                "label": _as_safe_scalar(active_profile.get("name") or "Microsoft account", limit=120),
+                "user": _as_safe_scalar(active_profile.get("username") or "", limit=160),
+                "profile_id": active_profile.get("profile_id"),
+            },
+            "app_count": len(apps),
+            "owner_count": len({row["owner_email"] or row["owner_name"] for row in apps if row["owner_email"] or row["owner_name"]}),
+            "report": {
+                "format": "xlsx" if generate_excel else None,
+                "path": report_path,
+                "file_name": Path(report_path).name if report_path else None,
+                "worksheets": worksheets,
+            } if generate_excel else None,
+            "preview": apps[:10],
+            "data_source": "Power Platform API (Power Apps admin inventory)",
+            "api_version": API_VERSION,
+            "coverage": "Apps returned by the Power Platform API for the explicitly selected accessible environment; permissions determine coverage.",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "note": "Only app identity, owner, version, timestamps, form factor, sharing counts, and environment metadata are returned. App definitions, connection details, and secrets are excluded.",
+        }
+
+    def _write_excel_report(
+        self,
+        *,
+        apps: list[dict[str, Any]],
+        environment_id: str,
+        environment_name: str,
+        active_profile: Mapping[str, Any],
+    ) -> tuple[str, list[str]]:
+        report_dir = self.project_root / "reports" / "PowerPlatform"
+        output_path = build_report_path(report_dir, ["Power-Apps-Inventory", environment_name])
+        temp_path = output_path.with_name(output_path.stem + ".tmp.xlsx")
+        workbook = Workbook()
+        overview = workbook.active
+        overview.title = "Overview"
+        overview.append(["SKYFALL Power Apps Inventory", "Value"])
+        overview.append(["Generated (UTC)", datetime.now(timezone.utc).isoformat(timespec="seconds")])
+        overview.append(["Environment", environment_name])
+        overview.append(["Environment ID", environment_id])
+        overview.append(["Microsoft account profile", _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)])
+        overview.append(["Signed-in user", _as_safe_scalar(active_profile.get("username") or "Not supplied", limit=160)])
+        overview.append(["Power Apps discovered", len(apps)])
+        overview.append(["Cloud changes performed", "No — read-only inventory"])
+        overview.append(["App definitions / connection details read", "No"])
+        overview.append(["Data source", f"Power Platform API {API_VERSION}; allow-listed app metadata fields"])
+        PowerPlatformFlowInventory._append_table(
+            workbook.create_sheet("Power Apps"),
+            [
+                ("Display Name", "display_name"), ("App ID", "app_id"), ("App Type", "app_type"),
+                ("Form Factor", "primary_form_factor"), ("Version", "app_version"),
+                ("Owner", "owner_name"), ("Owner Email", "owner_email"), ("Created By", "created_by"),
+                ("Created On", "created_on"), ("Last Modified", "modified_on"),
+                ("Shared Users", "shared_users_count"), ("Shared Groups", "shared_groups_count"),
+                ("Environment", "environment_name"), ("Environment ID", "environment_id"),
+            ],
+            apps,
+            "PowerAppsTable",
+        )
+        PowerPlatformFlowInventory._sanitize_workbook_text_cells(workbook)
+        PowerPlatformFlowInventory._format_workbook(workbook)
+        try:
+            workbook.save(temp_path)
+            os.replace(temp_path, output_path)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+        return str(output_path), [sheet.title for sheet in workbook.worksheets]
+
+
+class PowerPlatformSolutionInventory:
+    """Read-only Dataverse solution catalog for one verified environment."""
+
+    def __init__(self, *, project_root: str | Path | None = None, api: PowerPlatformApi | None = None) -> None:
+        self.project_root = Path(
+            project_root or os.environ.get("SKYFALL_ROOT") or Path(__file__).resolve().parents[1]
+        ).expanduser().resolve()
+        self.api = api or PowerPlatformApi()
+        self.accounts = self.api.store
+
+    def inventory(
+        self,
+        *,
+        environment_id: str,
+        profile_id: str | None = None,
+        generate_excel: bool = True,
+    ) -> dict[str, Any]:
+        safe = {"cloud_resources_modified": False, "secrets_returned": False}
+        if os.environ.get("SKYFALL_TEST_MODE") == "1":
+            return {
+                **safe,
+                "success": False,
+                "status": "blocked_test_mode",
+                "error": "External Power Platform solution inventory is disabled in SKYFALL_TEST_MODE.",
+            }
+        try:
+            resolved_environment_id = str(uuid.UUID((environment_id or "").strip()))
+        except (ValueError, AttributeError) as exc:
+            raise ValueError("Select a valid environment GUID from SKYFALL's discovered environment list.") from exc
+        selected_profile_id = profile_id or self.accounts.get_active_profile_id()
+        active_profile = self.accounts.get_profile(selected_profile_id) if selected_profile_id else None
+        if not active_profile:
+            return {
+                **safe,
+                "success": False,
+                "status": "not_authenticated",
+                "error": "No saved Microsoft account is selected. Add or select a Power Platform account first.",
+            }
+        discovered = self.api.list_environments(selected_profile_id)
+        if not discovered.get("success"):
+            return {
+                **safe,
+                "success": False,
+                "status": "environment_discovery_failed",
+                "error": str(discovered.get("error") or "Could not verify the selected environment."),
+            }
+        environment = next(
+            (
+                item for item in discovered.get("environments", [])
+                if str(item.get("environment_id") or "").casefold() == resolved_environment_id.casefold()
+            ),
+            None,
+        )
+        if environment is None:
+            return {
+                **safe,
+                "success": False,
+                "status": "environment_not_accessible",
+                "error": "The requested environment was not returned for the selected Microsoft account. Refresh and select an accessible environment.",
+            }
+        environment_url = str(environment.get("environment_url") or "").rstrip("/")
+        parsed = urlparse(environment_url)
+        if parsed.scheme != "https" or not parsed.hostname or not parsed.hostname.endswith(".dynamics.com"):
+            raise ValueError("Selected environment does not have a valid HTTPS Dataverse URL.")
+        token = self.api._access_token(selected_profile_id, [f"{environment_url}/.default"], interactive=True)
+        url = f"{environment_url}/api/data/v9.2/solutions"
+        params: dict[str, Any] | None = {
+            "$select": "solutionid,friendlyname,uniquename,version,ismanaged,isvisible,installedon,createdon,modifiedon,_publisherid_value",
+            "$filter": "isvisible eq true",
+            "$orderby": "friendlyname asc",
+            "$top": "5000",
+        }
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "OData-MaxVersion": "4.0",
+            "OData-Version": "4.0",
+            "Prefer": 'odata.include-annotations="*"',
+        }
+        solutions: list[dict[str, Any]] = []
+        page_count = 0
+        while url:
+            page_count += 1
+            if page_count > 100:
+                raise PowerPlatformInventoryError("Solution inventory exceeded the 100-page safety limit.")
+            try:
+                response = self.api.http.get(url, params=params, headers=headers, timeout=90)
+            except httpx.TimeoutException as exc:
+                raise PowerPlatformInventoryError("Dataverse solution inventory timed out.") from exc
+            except httpx.HTTPError as exc:
+                raise PowerPlatformInventoryError("Could not reach the selected Dataverse environment.") from exc
+            params = None
+            if response.status_code >= 400:
+                status = response.status_code
+                if status in (401, 403):
+                    message = "Microsoft denied Dataverse solution inventory. Confirm the account can read solutions in this environment."
+                elif status == 404:
+                    message = "The Dataverse solutions endpoint was not found. Refresh environment discovery and try again."
+                elif status == 429:
+                    message = "Microsoft throttled solution inventory. Wait briefly, then retry."
+                else:
+                    message = f"Dataverse solution inventory failed (HTTP {status}). Check network access and permissions."
+                raise PowerPlatformInventoryError(message)
+            try:
+                payload = response.json()
+            except ValueError as exc:
+                raise PowerPlatformInventoryError("Dataverse returned invalid solution inventory JSON.") from exc
+            if not isinstance(payload, dict) or not isinstance(payload.get("value", []), list):
+                raise PowerPlatformInventoryError("Dataverse returned an unexpected solution response shape.")
+            for row in payload.get("value", []):
+                if not isinstance(row, dict):
+                    continue
+                solution_id = _as_safe_scalar(row.get("solutionid"), limit=80)
+                unique_name = _as_safe_scalar(row.get("uniquename"), limit=120)
+                if not solution_id or not unique_name:
+                    continue
+                solutions.append({
+                    "solution_id": solution_id,
+                    "display_name": _as_safe_scalar(row.get("friendlyname"), limit=256),
+                    "unique_name": unique_name,
+                    "version": _as_safe_scalar(row.get("version"), limit=80),
+                    "managed": bool(row.get("ismanaged")),
+                    "visible": bool(row.get("isvisible")),
+                    "publisher_id": _as_safe_scalar(row.get("_publisherid_value"), limit=80),
+                    "publisher_name": _as_safe_scalar(row.get("_publisherid_value@OData.Community.Display.V1.FormattedValue"), limit=180),
+                    "installed_on": _as_safe_scalar(row.get("installedon"), limit=80),
+                    "created_on": _as_safe_scalar(row.get("createdon"), limit=80),
+                    "modified_on": _as_safe_scalar(row.get("modifiedon"), limit=80),
+                })
+            try:
+                url = _safe_next_link(url, payload.get("@odata.nextLink"), parsed.hostname)
+            except RuntimeError as exc:
+                raise PowerPlatformInventoryError(str(exc)) from exc
+        solutions.sort(key=lambda row: (row["display_name"].casefold(), row["unique_name"].casefold()))
+        report_path: str | None = None
+        worksheets: list[str] = []
+        if generate_excel:
+            report_path, worksheets = self._write_excel_report(
+                solutions=solutions,
+                environment_id=resolved_environment_id,
+                environment_name=str(environment.get("name") or "Selected Environment"),
+                active_profile=active_profile,
+            )
+        managed_count = sum(1 for row in solutions if row["managed"])
+        return {
+            **safe,
+            "success": True,
+            "status": "success",
+            "operation": "power_platform_solution_inventory",
+            "environment": {"name": str(environment.get("name") or "Selected Environment"), "environment_id": resolved_environment_id},
+            "active_profile": {
+                "label": _as_safe_scalar(active_profile.get("name") or "Microsoft account", limit=120),
+                "user": _as_safe_scalar(active_profile.get("username") or "", limit=160),
+                "profile_id": active_profile.get("profile_id"),
+            },
+            "solution_count": len(solutions),
+            "managed_count": managed_count,
+            "unmanaged_count": len(solutions) - managed_count,
+            "report": {"format": "xlsx", "path": report_path, "worksheets": worksheets} if generate_excel else None,
+            "preview": solutions[:10],
+            "data_source": "Microsoft Dataverse Web API (solutions table; allow-listed metadata columns)",
+            "coverage": "Visible solutions returned for the selected account in the verified environment; permissions determine coverage.",
+            "secrets_returned": False,
+            "cloud_resources_modified": False,
+            "note": "Solution names, IDs, versions, publisher identifiers, management state, and timestamps only. Solution files, component payloads, and secrets are not read.",
+        }
+
+    def _write_excel_report(
+        self,
+        *,
+        solutions: list[dict[str, Any]],
+        environment_id: str,
+        environment_name: str,
+        active_profile: Mapping[str, Any],
+    ) -> tuple[str, list[str]]:
+        report_dir = self.project_root / "reports" / "PowerPlatform"
+        output_path = build_report_path(report_dir, ["Power-Platform-Solutions", environment_name])
+        temp_path = output_path.with_name(output_path.stem + ".tmp.xlsx")
+        workbook = Workbook()
+        overview = workbook.active
+        overview.title = "Overview"
+        managed = sum(1 for row in solutions if row["managed"])
+        overview.append(["SKYFALL Power Platform Solution Inventory", "Value"])
+        overview.append(["Generated (UTC)", datetime.now(timezone.utc).isoformat(timespec="seconds")])
+        overview.append(["Environment", environment_name])
+        overview.append(["Environment ID", environment_id])
+        overview.append(["Microsoft account profile", _as_safe_scalar(active_profile.get("name") or "Selected account", limit=160)])
+        overview.append(["Solutions discovered", len(solutions)])
+        overview.append(["Managed", managed])
+        overview.append(["Unmanaged", len(solutions) - managed])
+        overview.append(["Cloud changes performed", "No — read-only inventory"])
+        PowerPlatformFlowInventory._append_table(
+            workbook.create_sheet("Solutions"),
+            [
+                ("Display Name", "display_name"), ("Unique Name", "unique_name"),
+                ("Solution ID", "solution_id"), ("Version", "version"),
+                ("Managed", "managed"), ("Visible", "visible"),
+                ("Publisher", "publisher_name"), ("Publisher ID", "publisher_id"),
+                ("Installed On", "installed_on"), ("Created On", "created_on"),
+                ("Modified On", "modified_on"),
+            ],
+            solutions,
+            "PowerPlatformSolutionsTable",
+        )
+        PowerPlatformFlowInventory._sanitize_workbook_text_cells(workbook)
+        PowerPlatformFlowInventory._format_workbook(workbook)
+        try:
+            workbook.save(temp_path)
+            os.replace(temp_path, output_path)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+        return str(output_path), [sheet.title for sheet in workbook.worksheets]

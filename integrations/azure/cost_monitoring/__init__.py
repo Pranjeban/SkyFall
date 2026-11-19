@@ -1,0 +1,10 @@
+SKYFALL Azure Cost Monitoring Module
+
+This package provides comprehensive Azure cost intelligence and monitoring capabilities:
+- Subscription-level cost analysis
+- Resource-level cost attribution
+- Monthly cost trends visualization
+- Budget monitoring and alerts
+- Cost anomaly detection
+- Unused resource identification
+- Cost optimization recommendations

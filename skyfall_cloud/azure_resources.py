@@ -877,3 +877,375 @@ class AzureFunctionAppInventory:
                 showColumnStripes=False,
             )
             worksheet.add_table(table)
+
+
+class AzureResourceInventory(AzureFunctionAppInventory):
+    """Inventory general Azure resource metadata through the shared safe ARG path."""
+
+    RESOURCE_QUERY = r"""
+Resources
+| project
+    id,
+    name,
+    type,
+    kind,
+    location,
+    resourceGroup,
+    subscriptionId,
+    tagsCount = array_length(bag_keys(tags)),
+    provisioningState = tostring(properties.provisioningState),
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    managedBy
+| order by type asc, id asc
+""".strip()
+
+    @staticmethod
+    def _normalize_resource_types(
+        resource_type: Any = None,
+        resource_types: Any = None,
+        resource_type_filter: Any = None,
+    ) -> list[str]:
+        values: list[str] = []
+        for candidate in (resource_type, resource_type_filter):
+            if isinstance(candidate, str):
+                values.extend(part.strip() for part in candidate.split(",") if part.strip())
+            elif candidate is not None:
+                values.append(str(candidate).strip())
+        if isinstance(resource_types, (list, tuple, set)):
+            for candidate in resource_types:
+                if isinstance(candidate, str):
+                    values.extend(part.strip() for part in candidate.split(",") if part.strip())
+                elif candidate is not None:
+                    values.append(str(candidate).strip())
+        elif isinstance(resource_types, str):
+            values.extend(part.strip() for part in resource_types.split(",") if part.strip())
+        elif resource_types is not None:
+            values.append(str(resource_types).strip())
+
+        normalized: list[str] = []
+        for value in values:
+            if not value:
+                continue
+            # Keep the filter to the safe Azure resource type grammar. This is
+            # interpolated into KQL only after validation to avoid query injection.
+            if not re.fullmatch(r"[A-Za-z0-9._/\-]+", value):
+                raise ValueError(f"Invalid Azure resource type filter: {value!r}")
+            normalized.append(value)
+        return sorted(set(normalized), key=str.casefold)
+
+    @classmethod
+    def build_resource_query(cls, resource_types: list[str] | None = None) -> str:
+        query = cls.RESOURCE_QUERY
+        if not resource_types:
+            return query
+        # RESOURCE_QUERY is a project/order pipeline; insert the type filter
+        # before projection without changing the safe field subset.
+        filters = " or ".join(f"type =~ '{item}'" for item in resource_types)
+        return (
+            "Resources\n"
+            f"| where {filters}\n"
+            "| project\n"
+            "    id,\n"
+            "    name,\n"
+            "    type,\n"
+            "    kind,\n"
+            "    location,\n"
+            "    resourceGroup,\n"
+            "    subscriptionId,\n"
+            "    tagsCount = array_length(bag_keys(tags)),\n"
+            "    provisioningState = tostring(properties.provisioningState),\n"
+            "    skuName = tostring(sku.name),\n"
+            "    skuTier = tostring(sku.tier),\n"
+            "    managedBy\n"
+            "| order by type asc, id asc"
+        ).strip()
+
+    def inventory(
+        self,
+        *,
+        profile_id: str = "all",
+        subscription_ids: Iterable[str] | None = None,
+        generate_excel: bool = True,
+        resource_type: Any = None,
+        resource_types: Any = None,
+        resource_type_filter: Any = None,
+    ) -> dict[str, Any]:
+        """Discover non-secret resource metadata in enabled, accessible subscriptions.
+
+        Optional resource type filters restrict the query to safe metadata for
+        selected Azure resource types (for example VMs, storage accounts or SQL
+        servers). Only the safe field subset is ever returned.
+        """
+        resource_type_filters = self._normalize_resource_types(
+            resource_type=resource_type,
+            resource_types=resource_types,
+            resource_type_filter=resource_type_filter,
+        )
+        safe_result = {
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "resource_type_filters": resource_type_filters,
+        }
+        if os.environ.get("SKYFALL_TEST_MODE") == "1":
+            return {
+                **safe_result,
+                "success": False,
+                "status": "blocked_test_mode",
+                "error": "External Azure Resource Graph access is disabled in SKYFALL_TEST_MODE.",
+            }
+
+        requested_ids = [str(value).strip() for value in (subscription_ids or []) if str(value).strip()]
+        normalized_requested = {value.casefold() for value in requested_ids}
+        if len(normalized_requested) != len(requested_ids):
+            raise ValueError("subscription_ids contains duplicate values.")
+
+        profiles = self._profiles_to_process(profile_id)
+        if not profiles:
+            return {
+                **safe_result,
+                "success": False,
+                "status": "failed",
+                "error": "No Azure profiles are configured in SKYFALL.",
+            }
+
+        resources: list[dict[str, Any]] = []
+        errors: list[dict[str, str]] = []
+        subscriptions_seen: dict[str, dict[str, str]] = {}
+        successful_profiles: list[str] = []
+        requested_ids_found: set[str] = set()
+
+        for profile in profiles:
+            current_profile_id = str(profile["profile_id"])
+            profile_name = str(profile["name"])
+            auth = self.profile_manager.get_auth_status(current_profile_id)
+            if not auth.get("authenticated"):
+                errors.append({
+                    "profile": profile_name,
+                    "profile_id": current_profile_id,
+                    "stage": "authentication",
+                    "error": "Profile is not authenticated; sign in to this profile before inventory.",
+                })
+                continue
+
+            subscription_result = self.profile_manager.list_subscriptions(current_profile_id, refresh=True)
+            if not subscription_result.get("success"):
+                errors.append({
+                    "profile": profile_name,
+                    "profile_id": current_profile_id,
+                    "stage": "subscriptions",
+                    "error": str(subscription_result.get("error") or "Subscription discovery failed."),
+                })
+                continue
+
+            subscriptions = [
+                item for item in subscription_result.get("subscriptions", [])
+                if str(item.get("state", "")).casefold() == "enabled"
+            ]
+            if normalized_requested:
+                subscriptions = [
+                    item for item in subscriptions
+                    if str(item.get("subscription_id", "")).casefold() in normalized_requested
+                ]
+                requested_ids_found.update(
+                    str(item.get("subscription_id", "")).casefold() for item in subscriptions
+                )
+            if not subscriptions:
+                # A target may be present in another configured profile.
+                if normalized_requested:
+                    continue
+                errors.append({
+                    "profile": profile_name,
+                    "profile_id": current_profile_id,
+                    "stage": "subscriptions",
+                    "error": "No enabled accessible subscriptions were found for this profile.",
+                })
+                continue
+
+            subscription_id_list = [str(item["subscription_id"]) for item in subscriptions]
+            sub_by_id = {str(item.get("subscription_id", "")).casefold(): item for item in subscriptions}
+            for item in subscriptions:
+                sub_id = str(item.get("subscription_id", ""))
+                subscriptions_seen[f"{current_profile_id}:{sub_id}".casefold()] = {
+                    "profile_id": current_profile_id,
+                    "profile": profile_name,
+                    "subscription_id": sub_id,
+                    "subscription_name": str(item.get("name", "")),
+                    "tenant_id": str(item.get("tenant_id", "")),
+                }
+
+            try:
+                arm_token = self.token_provider(current_profile_id)
+                with self.http_client_factory() as client:
+                    query = self.build_resource_query(resource_type_filters)
+                    rows = self._query_resource_graph(
+                        client, arm_token, subscription_id_list, query
+                    )
+                for row in rows:
+                    resource_id = str(row.get("id") or "").strip()
+                    name = str(row.get("name") or "").strip()
+                    sub_id = str(row.get("subscriptionId") or "").strip()
+                    if not resource_id or not name or sub_id.casefold() not in sub_by_id:
+                        continue
+                    sub = sub_by_id[sub_id.casefold()]
+                    resources.append({
+                        "profile_id": current_profile_id,
+                        "profile": profile_name,
+                        "subscription_id": sub_id,
+                        "subscription_name": str(sub.get("name", "")),
+                        "tenant_id": str(sub.get("tenant_id", "")),
+                        "resource_group": str(row.get("resourceGroup") or ""),
+                        "name": name,
+                        "resource_type": str(row.get("type") or ""),
+                        "kind": str(row.get("kind") or ""),
+                        "region": str(row.get("location") or ""),
+                        "tags_count": int(row.get("tagsCount") or 0) if str(row.get("tagsCount") or "").isdigit() else 0,
+                        "provisioning_state": str(row.get("provisioningState") or ""),
+                        "sku_name": str(row.get("skuName") or ""),
+                        "sku_tier": str(row.get("skuTier") or ""),
+                        "managed_by": str(row.get("managedBy") or ""),
+                        "resource_id": resource_id,
+                    })
+                successful_profiles.append(profile_name)
+            except Exception as exc:
+                errors.append({
+                    "profile": profile_name,
+                    "profile_id": current_profile_id,
+                    "stage": "resource_graph",
+                    "error": f"{type(exc).__name__}: {str(exc)[:500]}",
+                })
+
+        if normalized_requested:
+            missing = sorted(normalized_requested - requested_ids_found)
+            if missing:
+                errors.append({
+                    "profile": "selected scope",
+                    "profile_id": str(profile_id or "all"),
+                    "stage": "subscription_filter",
+                    "error": "Requested subscription IDs were not enabled or accessible to the selected profiles: "
+                    + ", ".join(missing),
+                })
+
+        deduped: dict[str, dict[str, Any]] = {}
+        for record in resources:
+            key = f"{record['subscription_id']}:{record['resource_id']}".casefold()
+            if key not in deduped:
+                record["profiles"] = [record["profile"]]
+                deduped[key] = record
+            elif record["profile"] not in deduped[key]["profiles"]:
+                deduped[key]["profiles"].append(record["profile"])
+                deduped[key]["profile"] = "; ".join(sorted(deduped[key]["profiles"]))
+        inventory = sorted(
+            deduped.values(),
+            key=lambda item: (
+                item["subscription_name"].casefold(),
+                item["resource_type"].casefold(),
+                item["resource_group"].casefold(),
+                item["name"].casefold(),
+            ),
+        )
+        if not successful_profiles:
+            return {
+                **safe_result,
+                "success": False,
+                "status": "failed",
+                "resource_count": 0,
+                "errors": errors,
+                "error": "No authenticated Azure profile completed resource discovery. Review the account and permission errors.",
+            }
+
+        type_counts = dict(sorted(Counter(row["resource_type"] for row in inventory).items()))
+        report_path: str | None = None
+        if generate_excel:
+            scopes = {row["subscription_name"] for row in subscriptions_seen.values() if row["subscription_name"]}
+            scope = next(iter(scopes)) if normalized_requested and len(scopes) == 1 else (
+                "Selected-Subscriptions" if normalized_requested else "All-Subscriptions"
+            )
+            report_path = self._write_general_resource_report(inventory, errors, scope)
+
+        return {
+            **safe_result,
+            "success": True,
+            "status": "partial" if errors else "success",
+            "operation": "azure_resource_inventory",
+            "profile_count": len(successful_profiles),
+            "subscription_count": len({row["subscription_id"] for row in subscriptions_seen.values()}),
+            "resource_count": len(inventory),
+            "resource_type_count": len(type_counts),
+            "resource_type_counts": type_counts,
+            "resource_type_filters": resource_type_filters,
+            "errors": errors,
+            "report": {"format": "xlsx", "path": report_path} if generate_excel else None,
+            "preview": inventory[:20],
+            "scope": "enabled_subscriptions_visible_to_selected_registered_azure_profile_or_profiles",
+            "data_source": "Azure Resource Graph REST API",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "fields_returned": [
+                "resource_id", "name", "resource_type", "kind", "region", "resource_group",
+                "subscription_id", "subscription_name", "tenant_id", "tags_count",
+                "provisioning_state", "sku_name", "sku_tier", "managed_by",
+            ],
+            "note": (
+                "Only Resource Graph resource metadata fields are queried. Arbitrary resource properties, "
+                "tags, app settings, connection strings, keys, and deployment or diagnostic data are excluded. "
+                "Resource Graph indexing may lag recent changes."
+            ),
+        }
+
+    def _write_general_resource_report(
+        self, resources: list[dict[str, Any]], errors: list[dict[str, str]], scope: str
+    ) -> str:
+        report_dir = self.project_root / "reports" / "Azure"
+        output_path = build_report_path(report_dir, ["Azure-Resource-Inventory", scope])
+        temp_path = output_path.with_name(output_path.stem + ".tmp.xlsx")
+        workbook = Workbook()
+        summary = workbook.active
+        summary.title = "Summary"
+        summary.append(["SKYFALL Azure Resource Inventory", "Value"])
+        summary.append(["Generated (UTC)", datetime.now(timezone.utc).isoformat()])
+        summary.append(["Resources", len(resources)])
+        summary.append(["Subscriptions", len({row["subscription_id"] for row in resources})])
+        summary.append(["Resource types", len({row["resource_type"] for row in resources})])
+        summary.append(["Discovery errors", len(errors)])
+        self._append_table(
+            workbook.create_sheet("Resources"),
+            [
+                ("Profile", "profile"), ("Profiles", "profiles"), ("Tenant ID", "tenant_id"),
+                ("Subscription", "subscription_name"), ("Subscription ID", "subscription_id"),
+                ("Resource Group", "resource_group"), ("Name", "name"), ("Type", "resource_type"),
+                ("Kind", "kind"), ("Region", "region"), ("Tag Count", "tags_count"),
+                ("Provisioning State", "provisioning_state"), ("SKU Name", "sku_name"),
+                ("SKU Tier", "sku_tier"), ("Managed By", "managed_by"), ("Resource ID", "resource_id"),
+            ],
+            resources,
+            "AzureResourcesTable",
+        )
+        self._append_table(
+            workbook.create_sheet("Discovery Errors"),
+            [("Profile", "profile"), ("Profile ID", "profile_id"), ("Stage", "stage"), ("Error", "error")],
+            errors,
+            "AzureResourceErrorsTable",
+        )
+        self._sanitize_workbook_text_cells(workbook)
+        for sheet in workbook.worksheets:
+            sheet.sheet_view.showGridLines = False
+            sheet.freeze_panes = "A2"
+            for cell in sheet[1]:
+                cell.font = Font(name="Aptos Display", bold=True, color="FFFFFF", size=12)
+                cell.fill = PatternFill("solid", fgColor="183A63")
+                cell.alignment = Alignment(vertical="center", wrap_text=True)
+            sheet.row_dimensions[1].height = 28
+            for column_cells in sheet.columns:
+                width = max(12, min(max((len(str(cell.value or "")) for cell in column_cells[:250]), default=10) + 2, 52))
+                sheet.column_dimensions[column_cells[0].column_letter].width = width
+        try:
+            workbook.save(temp_path)
+            os.replace(temp_path, output_path)
+        finally:
+            if temp_path.exists():
+                try:
+                    temp_path.unlink()
+                except OSError:
+                    pass
+        return str(output_path)

@@ -14,7 +14,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("SKYFALL")
     app.setOrganizationName("SKYFALL")
-    app.setApplicationVersion("0.8.0")
+    app.setApplicationVersion("0.9.2")
     app.setStyle("Fusion")
     app.setStyleSheet(APP_STYLESHEET)
 

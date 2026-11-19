@@ -1,0 +1,139 @@
+﻿{
+    "agents":  {
+                   "orchestrator":  {
+                                        "description":  "Primary coordinator for automatic cost-aware specialist delegation.",
+                                        "mode":  "primary",
+                                        "model":  "nvidia/deepseek-ai/deepseek-v4.1-flash",
+                                        "steps":  12,
+                                        "permissions":  [
+                                                            {
+                                                                "action":  "subagent",
+                                                                "resource":  "*",
+                                                                "effect":  "allow"
+                                                            }
+                                                        ]
+                                    },
+                   "security-auditor":  {
+                                            "description":  "Read-only security analysis and vulnerability assessment.",
+                                            "mode":  "subagent",
+                                            "model":  "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b",
+                                            "steps":  12,
+                                            "permissions":  [
+                                                                {
+                                                                    "action":  "edit",
+                                                                    "resource":  "*",
+                                                                    "effect":  "deny"
+                                                                },
+                                                                {
+                                                                    "action":  "shell",
+                                                                    "resource":  "*",
+                                                                    "effect":  "deny"
+                                                                }
+                                                            ]
+                                        },
+                   "reviewer":  {
+                                    "description":  "Independent read-only code review.",
+                                    "mode":  "subagent",
+                                    "model":  "nvidia/deepseek-ai/deepseek-v4.1-flash",
+                                    "steps":  12,
+                                    "permissions":  [
+                                                        {
+                                                            "action":  "edit",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        },
+                                                        {
+                                                            "action":  "shell",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        }
+                                                    ]
+                                },
+                   "architect":  {
+                                     "description":  "Advanced architecture and complex engineering decisions.",
+                                     "mode":  "subagent",
+                                     "model":  "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b",
+                                     "steps":  12,
+                                     "permissions":  [
+                                                         {
+                                                             "action":  "edit",
+                                                             "resource":  "*",
+                                                             "effect":  "deny"
+                                                         },
+                                                         {
+                                                             "action":  "shell",
+                                                             "resource":  "*",
+                                                             "effect":  "deny"
+                                                         }
+                                                     ]
+                                 },
+                   "explorer":  {
+                                    "description":  "Read-only repository exploration and code search.",
+                                    "mode":  "subagent",
+                                    "model":  "opencode/mimo-v2.6-flash-free",
+                                    "steps":  12,
+                                    "permissions":  [
+                                                        {
+                                                            "action":  "edit",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        },
+                                                        {
+                                                            "action":  "shell",
+                                                            "resource":  "*",
+                                                            "effect":  "deny"
+                                                        }
+                                                    ]
+                                },
+                   "researcher":  {
+                                      "description":  "Technical documentation and API research.",
+                                      "mode":  "subagent",
+                                      "model":  "opencode/mimo-v2.6-flash-free",
+                                      "steps":  12,
+                                      "permissions":  [
+                                                          {
+                                                              "action":  "edit",
+                                                              "resource":  "*",
+                                                              "effect":  "deny"
+                                                          },
+                                                          {
+                                                              "action":  "shell",
+                                                              "resource":  "*",
+                                                              "effect":  "deny"
+                                                          }
+                                                      ]
+                                  },
+                   "tester":  {
+                                  "description":  "Test creation, execution and validation.",
+                                  "mode":  "subagent",
+                                  "model":  "opencode/mimo-v2.6-flash-free",
+                                  "steps":  12,
+                                  "permissions":  [
+                                                      {
+                                                          "action":  "edit",
+                                                          "resource":  "*",
+                                                          "effect":  "ask"
+                                                      },
+                                                      {
+                                                          "action":  "shell",
+                                                          "resource":  "*",
+                                                          "effect":  "ask"
+                                                      }
+                                                  ]
+                              },
+                   "debugger":  {
+                                    "description":  "Root-cause analysis and runtime debugging.",
+                                    "mode":  "subagent",
+                                    "model":  "nvidia/deepseek-ai/deepseek-v4.1-flash",
+                                    "steps":  12
+                                },
+                   "developer":  {
+                                     "description":  "Feature implementation, bug fixes and refactoring.",
+                                     "mode":  "subagent",
+                                     "model":  "nvidia/deepseek-ai/deepseek-v4.1-flash",
+                                     "steps":  12
+                                 }
+               },
+    "$schema":  "https://opencode.ai/config.json",
+    "default_agent":  "orchestrator"
+}

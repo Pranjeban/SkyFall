@@ -12,12 +12,14 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import urlparse
 
-from .command_runner import CommandResult, run_cli
+from .command_runner import CommandResult, redact_sensitive_text, run_cli
 
 
 Runner = Callable[..., CommandResult]
@@ -142,11 +144,17 @@ class AzureProfileStore:
                 return profile
         raise KeyError(f"Unknown Azure profile: {clean}")
 
-    def create_profile(self, name: str, tenant_hint: str) -> dict[str, Any]:
+    def create_profile(
+        self, name: str, tenant_hint: str, *, allow_tenant_discovery: bool = False
+    ) -> dict[str, Any]:
         clean_name = (name or "").strip()
         if not clean_name or len(clean_name) > 80:
             raise ValueError("Profile name must contain 1 to 80 characters.")
-        tenant = _validate_tenant_identifier(tenant_hint)
+        tenant = (
+            _validate_tenant_identifier(tenant_hint)
+            if (tenant_hint or "").strip()
+            else "" if allow_tenant_discovery else _validate_tenant_identifier("")
+        )
 
         data = self._read()
         if any(str(p.get("name", "")).casefold() == clean_name.casefold() for p in data["profiles"]):
@@ -230,6 +238,59 @@ class AzureProfileManager:
             return {}
         return {"AZURE_CONFIG_DIR": str(profile["config_dir"])}
 
+    def get_access_token(self, profile_id: str, resource: str) -> str:
+        """Get a short-lived resource token from the selected isolated Azure CLI profile.
+
+        The token is returned only to the in-process API caller and is never
+        included in command output, logs, or profile metadata.
+        """
+        target = (resource or "").strip()
+        parsed = urlparse(target)
+        host = (parsed.hostname or "").lower()
+        if parsed.scheme != "https" or parsed.username or parsed.password or not (
+            host in {"api.powerplatform.com", "service.powerapps.com"}
+            or host.endswith(".dynamics.com")
+        ):
+            raise ValueError("Token requests are limited to the Power Platform API and Dataverse environment hosts.")
+        if os.environ.get("SKYFALL_TEST_MODE") == "1":
+            raise RuntimeError("External Azure CLI token requests are disabled in SKYFALL_TEST_MODE.")
+        profile = self.store.get_profile(profile_id)
+        executable = shutil.which("az")
+        if not executable:
+            raise FileNotFoundError("Azure CLI (az) is required for Power Platform sign-in.")
+        arguments = [executable, "account", "get-access-token", "--resource", target, "--output", "json", "--only-show-errors"]
+        tenant = str(profile.get("tenant_hint") or "").strip()
+        if tenant:
+            arguments.extend(["--tenant", tenant])
+        environment = os.environ.copy()
+        environment.update({key: value for key, value in self._env_for(profile_id).items() if value is not None})
+        try:
+            completed = subprocess.run(
+                arguments,
+                shell=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=45,
+                env=environment,
+                check=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError("Azure CLI token request timed out. Sign in again and retry.") from exc
+        if completed.returncode != 0:
+            detail = redact_sensitive_text(completed.stderr or "").strip()
+            raise RuntimeError(detail[:700] or "Azure CLI could not get a token for this Power Platform resource.")
+        try:
+            payload = json.loads(completed.stdout or "{}")
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Azure CLI returned an unreadable token response.") from exc
+        token = str(payload.get("accessToken") or "").strip() if isinstance(payload, dict) else ""
+        if not token:
+            raise RuntimeError("Azure CLI did not return a Power Platform access token. Sign in again and retry.")
+        return token
+
     def get_auth_status(self, profile_id: str = "all") -> dict[str, Any]:
         """Inspect one Azure profile or all profiles without changing any context."""
         clean = (profile_id or "all").strip()
@@ -261,8 +322,6 @@ class AzureProfileManager:
                 "Create a named SKYFALL profile with a tenant ID or domain instead."
             )
         tenant = str(profile.get("tenant_hint") or "").strip()
-        if not tenant:
-            raise ValueError("This profile needs a tenant ID or domain before sign-in.")
         env = self._env_for(profile_id)
 
         # Force the standard browser flow for this isolated profile, without
@@ -284,14 +343,12 @@ class AzureProfileManager:
                     "error": (detail or f"Could not configure isolated browser sign-in ({setting}).")[:800],
                 }
 
+        login_arguments = ["login", "--allow-no-subscriptions", "--output", "json", "--only-show-errors"]
+        if tenant:
+            login_arguments.extend(["--tenant", tenant])
         login = self.runner(
             "az",
-            [
-                "login", "--tenant", tenant,
-                "--allow-no-subscriptions",
-                "--output", "json",
-                "--only-show-errors",
-            ],
+            login_arguments,
             timeout_seconds=300,
             env_overrides=env,
         )

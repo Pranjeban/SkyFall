@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 from typing import Any
 
 from skyfall_cloud.azure_profiles import AzureProfileManager
-from skyfall_cloud.powerplatform import PowerPlatformDiscovery
+from skyfall_cloud.powerplatform_accounts import PowerPlatformAccountStore, PowerPlatformApi
 from skyfall_cloud.auth_jobs import AUTH_JOBS
 
 
@@ -46,118 +47,170 @@ def list_azure_tenants(profile_id: str = "all", refresh: bool = False) -> str:
     return _json(AzureProfileManager().list_tenants(profile_id, refresh=refresh))
 
 
-def list_powerplatform_auth_profiles() -> str:
-    """List PAC CLI authentication profiles without changing the active profile."""
-    return _json(PowerPlatformDiscovery().list_auth_profiles())
+def start_azure_login(profile_name: str = "", tenant_id: str = "", profile_id: str = "") -> str:
+    """Start Azure CLI browser sign-in in a named SKYFALL-isolated profile."""
+    clean_name = (profile_name or "").strip()
+    clean_tenant = (tenant_id or "").strip()
+    clean_profile_id = (profile_id or "").strip()
+    profile: dict[str, Any] = {}
 
+    if not clean_profile_id and (not clean_name or not clean_tenant):
+        required = []
+        if not clean_name:
+            required.append("profile_name")
+        if not clean_tenant:
+            required.append("tenant_id")
+        return _json({
+            "success": False,
+            "requires_input": required,
+            "message": "Provide a profile name and tenant GUID or domain for a new Azure account.",
+            "login_started": False,
+        })
 
-def get_powerplatform_auth_status() -> str:
-    """Report the currently active PAC CLI profile, if one exists."""
-    return _json(PowerPlatformDiscovery().get_auth_status())
+    if os.environ.get("SKYFALL_TEST_MODE") == "1":
+        return _json({
+            "success": False,
+            "status": "blocked_test_mode",
+            "error": "External Azure sign-in is disabled in SKYFALL_TEST_MODE.",
+            "login_started": False,
+        })
 
-
-def list_powerplatform_environments() -> str:
-    """List tenant environments visible to pac admin list for the currently active PAC profile."""
-    return _json(PowerPlatformDiscovery().list_environments())
-
-
-def start_azure_login(
-    profile_name: str = "",
-    tenant_id: str = "",
-    profile_id: str = "",
-) -> str:
-    """Start browser-based Azure sign-in for a named SKYFALL profile.
-
-    Create a new profile by supplying profile_name and tenant_id, or sign in
-    to an existing isolated profile by supplying profile_id. The browser login
-    runs asynchronously; use get_microsoft_auth_job_status after the user
-    completes sign-in to retrieve discovered tenants and subscriptions.
-    """
     manager = AzureProfileManager()
-    if profile_id.strip():
-        profile = manager.store.get_profile(profile_id)
-        if tenant_id.strip():
-            profile = manager.store.update_tenant_hint(profile_id, tenant_id)
-        elif not profile.get("tenant_hint"):
-            return _json({
-                "success": False,
-                "requires_input": ["tenant_id"],
-                "profile_id": profile_id,
-                "message": "This profile needs a tenant ID or verified tenant domain before sign-in.",
-            })
-    else:
-        if not (profile_name or "").strip() or not (tenant_id or "").strip():
-            missing = []
-            if not (profile_name or "").strip():
-                missing.append("profile_name")
-            if not (tenant_id or "").strip():
-                missing.append("tenant_id")
-            return _json({
-                "success": False,
-                "requires_input": missing,
-                "message": "Provide a profile name and tenant ID or verified tenant domain before Azure sign-in.",
-            })
-        profile = manager.store.create_profile(profile_name, tenant_id)
+    if clean_profile_id:
+        try:
+            profile = manager.store.get_profile(clean_profile_id)
+            if profile.get("profile_id") == "azure-cli-default":
+                return _json({
+                    "success": False,
+                    "error": "Sign-in through the default Azure CLI profile is disabled to protect its existing context. Create a named SKYFALL profile instead.",
+                    "login_started": False,
+                })
+            if clean_tenant:
+                profile = manager.store.update_tenant_hint(clean_profile_id, clean_tenant)
+        except (KeyError, ValueError) as exc:
+            return _json({"success": False, "error": str(exc), "login_started": False})
+    def sign_in() -> dict[str, Any]:
+        selected_profile_id = clean_profile_id
+        if not selected_profile_id:
+            profile = manager.store.create_profile(clean_name, clean_tenant)
+            selected_profile_id = str(profile["profile_id"])
+        result = manager.login_profile(selected_profile_id)
+        if result.get("success"):
+            profiles = manager.store.list_profiles()
+            result["profiles"] = {
+                "count": len(profiles),
+                "profiles": profiles,
+            }
+        return result
 
     job = AUTH_JOBS.start(
-        f"Azure sign-in: {profile['name']}",
-        lambda: manager.login_profile(profile["profile_id"]),
+        f"Azure sign-in: {clean_name or clean_profile_id}",
+        sign_in,
     )
     return _json({
         "success": True,
         "login_started": True,
         **job,
-        "profile_id": profile["profile_id"],
-        "profile_name": profile["name"],
-        "tenant": profile.get("tenant_hint"),
-        "next_step": "A Microsoft sign-in page should open. Complete sign-in, then call get_microsoft_auth_job_status with the returned job_id to retrieve tenants and subscriptions.",
+        "profile_name": clean_name or profile.get("name", ""),
+        "profile_id": clean_profile_id or None,
+        "tenant_id": clean_tenant or profile.get("tenant_hint", ""),
+        "next_step": "Complete the Microsoft browser sign-in. Then call get_microsoft_auth_job_status with the returned job_id to view authentication and subscription discovery results.",
         "credential_material_returned": False,
     })
 
 
-def start_powerplatform_login(
-    profile_name: str,
-    environment: str = "",
-    confirm_global_profile_activation: bool = False,
-) -> str:
-    """Start PAC CLI sign-in only after acknowledging its global profile side effect.
+def configure_powerplatform_app(client_id: str) -> str:
+    """Save a public Microsoft Entra desktop app ID; no secret is accepted or stored."""
+    try:
+        PowerPlatformAccountStore().set_client_id(client_id)
+    except ValueError as exc:
+        return _json({"success": False, "error": str(exc)})
+    return _json({"success": True, "configured": True, "credential_material_returned": False})
 
-    PAC CLI auth profiles are stored by the local PAC CLI installation, and a
-    newly created profile may become its active profile. SKYFALL therefore
-    requires an explicit confirmation before starting this operation from Chat.
-    """
+
+def list_powerplatform_auth_profiles() -> str:
+    """List SKYFALL-local Microsoft OAuth account profiles without credentials."""
+    store = PowerPlatformAccountStore()
+    profiles = store.list_profiles()
+    active_id = store.get_active_profile_id()
+    return _json({
+        "success": True,
+        "count": len(profiles),
+        "profiles": [{**item, "active": item.get("profile_id") == active_id} for item in profiles],
+        "credential_material_returned": False,
+    })
+
+
+def get_powerplatform_auth_status() -> str:
+    """Report selected Power Platform profile and its signed-in account status."""
+    store = PowerPlatformAccountStore()
+    active = store.get_profile(store.get_active_profile_id())
+    authenticated = active is not None
+    if active and active.get("azure_profile_id"):
+        authenticated = bool(
+            AzureProfileManager().get_auth_status(str(active["azure_profile_id"])).get("authenticated")
+        )
+    return _json({
+        "authenticated": authenticated,
+        "active_profile": active,
+        "profile_count": len(store.list_profiles()),
+        "credential_material_returned": False,
+    })
+
+
+def list_powerplatform_environments() -> str:
+    """List environments available to the selected saved Microsoft OAuth profile."""
+    return _json(PowerPlatformApi().list_environments())
+
+
+def start_powerplatform_login(profile_name: str, tenant: str = "") -> str:
+    """Start isolated Azure browser sign-in and discover accessible environments."""
     name = (profile_name or "").strip()
     if not name:
-        return _json({"success": False, "requires_input": ["profile_name"], "message": "Provide a Power Platform profile name."})
-    if len(name) > 30:
-        return _json({"success": False, "requires_input": [], "error": "Power Platform profile names must contain 1 to 30 characters."})
-    if not confirm_global_profile_activation:
+        return _json({"success": False, "requires_input": ["profile_name"], "message": "Provide a name for the Microsoft account profile."})
+    if os.environ.get("SKYFALL_TEST_MODE") == "1":
         return _json({
             "success": False,
-            "requires_confirmation": True,
-            "confirmation_key": "confirm_global_profile_activation",
-            "profile_name": name,
-            "environment": (environment or "").strip() or None,
-            "warning": (
-                "Creating a PAC CLI authentication profile may make it the globally active profile "
-                "for this local PAC CLI installation. This can affect other terminals, projects and "
-                "Power Platform CLI commands. No profile has been created and no sign-in has started."
-            ),
-            "next_step": "Explain this impact and ask the user to explicitly confirm. Only after a clear yes, call this tool again with confirm_global_profile_activation=true.",
+            "status": "blocked_test_mode",
+            "error": "External Power Platform sign-in is disabled in SKYFALL_TEST_MODE.",
+            "login_started": False,
         })
-    discovery = PowerPlatformDiscovery()
-    job = AUTH_JOBS.start(
-        f"Power Platform sign-in: {name}",
-        lambda: discovery.create_profile_and_login(name, environment),
-    )
+
+    def sign_in() -> dict[str, Any]:
+        azure = AzureProfileManager()
+        profile = azure.store.create_profile(name, tenant or "", allow_tenant_discovery=True)
+        login = azure.login_profile(profile["profile_id"])
+        if not login.get("success"):
+            azure.store.delete_profile(profile["profile_id"])
+            raise RuntimeError(login.get("error") or "Microsoft sign-in did not complete.")
+        identity = login.get("auth") or {}
+        store = PowerPlatformAccountStore()
+        api = PowerPlatformApi(store)
+        api.attach_azure_profile(
+            profile["profile_id"],
+            name=profile["name"],
+            username=str(identity.get("user") or ""),
+            tenant_id=str(identity.get("tenant_id") or ""),
+        )
+        result = {"success": True, "profile": store.get_profile(profile["profile_id"])}
+        result["environments"] = api.list_environments(profile["profile_id"])
+        result["auth"] = azure.get_auth_status(profile["profile_id"])
+        profiles = store.list_profiles()
+        active_id = store.get_active_profile_id()
+        result["profiles"] = {
+            "count": len(profiles),
+            "profiles": [{**item, "active": item.get("profile_id") == active_id} for item in profiles],
+        }
+        return result
+
+    job = AUTH_JOBS.start(f"Power Platform sign-in: {name}", sign_in)
     return _json({
         "success": True,
         "login_started": True,
         **job,
         "profile_name": name,
-        "environment": (environment or "").strip() or None,
-        "tenant_resolution": "The tenant is determined by the Microsoft account selected during delegated PAC CLI sign-in; the PAC CLI user flow does not accept a tenant argument.",
-        "next_step": "Complete the Microsoft sign-in page, then call get_microsoft_auth_job_status with the returned job_id to retrieve the profile and accessible environments.",
+        "tenant": tenant or "",
+        "next_step": "Complete Microsoft browser sign-in. SKYFALL will then list accessible Power Platform environments. Call get_microsoft_auth_job_status to view results.",
         "credential_material_returned": False,
     })
 

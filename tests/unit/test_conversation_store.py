@@ -64,6 +64,17 @@ class ConversationStoreTests(unittest.TestCase):
         second = self.store.get_or_create_active_conversation()
         self.assertEqual(first.id, second.id)
 
+    def test_empty_drafts_do_not_appear_in_conversation_history(self) -> None:
+        first = self.store.create_conversation()
+        second = self.store.create_conversation()
+
+        self.assertEqual(self.store.list_conversations(), [])
+
+        self.store.add_message(second.id, "user", "Keep this conversation")
+        visible = self.store.list_conversations()
+        self.assertEqual([item.id for item in visible], [second.id])
+        self.assertNotIn(first.id, [item.id for item in visible])
+
     def test_delete_conversation_removes_local_messages(self) -> None:
         conversation = self.store.create_conversation()
         self.store.add_message(conversation.id, "user", "This will be removed locally")
@@ -79,6 +90,79 @@ class ConversationStoreTests(unittest.TestCase):
         conversation = self.store.create_conversation()
         with self.assertRaises(ValueError):
             self.store.add_message(conversation.id, "tool", "not a user or assistant message")
+
+    def test_schema_version_is_latest(self) -> None:
+        self.assertEqual(self.store.get_schema_version(), 2)
+
+    def test_migration_idempotent_on_reopen(self) -> None:
+        conversation = self.store.create_conversation()
+        self.store.add_message(conversation.id, "user", "persisted")
+        # Reopen same db
+        reopened = ConversationStore(self.database_path)
+        self.assertEqual(reopened.get_schema_version(), 2)
+        self.assertEqual(len(reopened.get_messages(conversation.id)), 1)
+
+    def test_backup_database_round_trip(self) -> None:
+        conversation = self.store.create_conversation()
+        self.store.add_message(conversation.id, "user", "backup me")
+        backup_path = Path(self.temp_dir.name) / "backup.db"
+        result = self.store.backup_database(backup_path)
+        self.assertTrue(result.exists())
+        restored = ConversationStore(backup_path)
+        self.assertEqual(restored.get_schema_version(), 2)
+        self.assertEqual(len(restored.get_messages(conversation.id)), 1)
+
+    def test_export_import_json_round_trip(self) -> None:
+        conversation = self.store.create_conversation()
+        self.store.add_message(conversation.id, "user", "export me")
+        export_path = Path(self.temp_dir.name) / "export.json"
+        self.store.export_conversations_json(export_path)
+        self.assertTrue(export_path.exists())
+
+        # Fresh db
+        fresh_db = Path(self.temp_dir.name) / "fresh.db"
+        fresh = ConversationStore(fresh_db)
+        result = fresh.import_conversations_json(export_path)
+        self.assertEqual(result["imported"], 1)
+        self.assertEqual(result["skipped"], 0)
+        convs = fresh.list_conversations()
+        self.assertEqual(len(convs), 1)
+        self.assertEqual(len(fresh.get_messages(convs[0].id)), 1)
+
+
+    def test_multi_key_state_round_trip(self) -> None:
+        self.store.set_state("theme", "dark")
+        self.store.set_state("profile", "default")
+        self.store.set_state("counter", 42)
+
+        self.assertEqual(self.store.get_state("theme"), "dark")
+        self.assertEqual(self.store.get_state("profile"), "default")
+        self.assertEqual(self.store.get_state("counter"), "42")
+        self.assertEqual(
+            self.store.list_state_keys(),
+            sorted(self.store.list_state_keys()),
+        )
+        self.assertIn("theme", self.store.list_state_keys())
+        self.assertIn("profile", self.store.list_state_keys())
+
+        # Update existing key.
+        self.store.set_state("theme", "light")
+        self.assertEqual(self.store.get_state("theme"), "light")
+
+        # Delete and verify.
+        self.store.delete_state("profile")
+        self.assertIsNone(self.store.get_state("profile"))
+        self.assertNotIn("profile", self.store.list_state_keys())
+
+        # Missing key returns None (or default).
+        self.assertIsNone(self.store.get_state("does_not_exist"))
+        self.assertEqual(self.store.get_state("does_not_exist", default="fallback"), "fallback")
+
+    def test_active_conversation_id_preserved_via_state_helpers(self) -> None:
+        conversation = self.store.create_conversation()
+        self.store.set_active_conversation(conversation.id)
+        self.assertEqual(self.store.get_state("active_conversation_id"), conversation.id)
+        self.assertEqual(self.store.get_active_conversation_id(), conversation.id)
 
 
 if __name__ == "__main__":

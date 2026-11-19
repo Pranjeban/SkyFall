@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from skyfall_cloud.azure_resources import AzureFunctionAppInventory
+from skyfall_cloud.azure_resources import AzureFunctionAppInventory, AzureResourceInventory
 
 
 def inventory_azure_function_apps(
@@ -26,6 +26,45 @@ def inventory_azure_function_apps(
             profile_id=profile_id,
             subscription_ids=subscription_ids,
             generate_excel=generate_excel,
+        )
+    except (ValueError, KeyError) as exc:
+        payload = {
+            "success": False,
+            "status": "invalid_request",
+            "error": str(exc),
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    except Exception as exc:
+        payload = {
+            "success": False,
+            "status": "failed",
+            "error": f"{type(exc).__name__}: {str(exc)[:500]}",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+        }
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def inventory_azure_resources(
+    profile_id: str = "all",
+    subscription_ids: list[str] | None = None,
+    generate_excel: bool = True,
+    resource_type: str = "",
+    resource_types: list[str] | None = None,
+) -> str:
+    """Inventory general Azure resource metadata without reading resource properties or secrets.
+
+    Optional resource_type/resource_types filters restrict results to selected
+    Azure resource types while retaining only the safe metadata subset.
+    """
+    try:
+        payload = AzureResourceInventory().inventory(
+            profile_id=profile_id,
+            subscription_ids=subscription_ids,
+            generate_excel=generate_excel,
+            resource_type=resource_type or None,
+            resource_types=resource_types,
         )
     except (ValueError, KeyError) as exc:
         payload = {
