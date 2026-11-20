@@ -215,3 +215,20 @@ The four `Data_Memory` Markdown files are hand-maintained, not generated: `READM
 ### 8.8 Exit assessment
 
 Data ownership, schemas, consumers, lifecycle, context reconstruction, duplication, transaction safety and security posture are now evidenced, with explicit limits where live DB files are unavailable. Phase 3 exit criteria are met. **Approval is required before Phase 4.**
+
+---
+
+## Phase 8 re-verification (2026-11-20)
+
+### 8.9 Descriptive-only clarification (D6)
+
+- The §8.5 Q1 answer describing `Data_Memory/skyfall_memory.sqlite3` as an "imported archival thread" is **DESCRIPTIVE of observed lineage only, NOT a decision on D6** (live vs archival). D6 remains **PENDING**. Original line preserved verbatim.
+
+### 8.10 Phase 8 re-verification evidence (2026-11-20)
+
+- Prior Phase 8 fixes present: `skyfall_workspace/manager.py:11,137,144-158` (threading.RLock; `_connection()` uses `with self._lock:` at :146); `memory/conversation_store.py:345-360` (`export_conversation_markdown` includes `copilot_session_id:351`, `sdk_session_initialized:352`, message status :356).
+- Orphan DB has ZERO runtime `.py` consumers (only standalone `analyze_db.py:3`); schema-incompatible; git-tracked. Runtime DBs: `conversation_store.py:61,367,369`, `manager.py:147`. No schema_version/migration framework; bootstrap uses `CREATE TABLE IF NOT EXISTS` (`conversation_store.py:83,95,109`; `manager.py:164,180`).
+- Integrity evidence (read-only immutable URI, NO writes): SHA-256 `44C322A00DD2B08B4001E5CB80E16176FF4FA0611CF76B682A0F564AEF3A5B01`, 434,176 B, `PRAGMA integrity_check = ok`, 28 sqlite_master objects; counts conversations=1, messages=35, memory_documents=9, assets=2, metadata=2. Full suite: 100 passed/53 subtests in 1.81s.
+- Live `%LOCALAPPDATA%\SKYFALL\data\` ABSENT → no migration/back-up/copy test possible.
+
+**Addendum compliance:** no source/config/DB/backup/release changed; no pending decision resolved; limitations recorded honestly; migration tests NOT claimed as passed.
