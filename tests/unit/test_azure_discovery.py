@@ -24,11 +24,15 @@ class FakeProfile:
 class FakeRegistry:
     def __init__(self) -> None:
         self.profiles: dict[str, FakeProfile] = {}
+        self.active: dict[str, str] = {}
 
     def get_profile(self, profile_id: str | None) -> FakeProfile | None:
         if profile_id is None:
             return next(iter(self.profiles.values()), None)
         return self.profiles.get(profile_id)
+
+    def get_active_profile_id(self, provider: str) -> str | None:
+        return self.active.get(provider)
 
 
 class FakeAuthority:
@@ -64,6 +68,10 @@ class TestAzureDiscoveryService(unittest.TestCase):
         self.azure = FakeProfile("azure-1")
         self.pp = FakeProfile("pp-1", "powerplatform")
         self.authority.registry.profiles = {self.azure.profile_id: self.azure, self.pp.profile_id: self.pp}
+        self.authority.registry.active = {
+            "azure": self.azure.profile_id,
+            "powerplatform": self.pp.profile_id,
+        }
         self.routes: dict[str, FakeResponse] = {
             f"{AZURE_MANAGEMENT_BASE}/tenants": FakeResponse(200, {"value": [
                 {"tenantId": "t-1", "displayName": "Contoso", "countryCode": "GB"},
@@ -112,6 +120,16 @@ class TestAzureDiscoveryService(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.list_tenants(self.pp.profile_id)
         self.assertEqual(self.http.calls, [])
+
+    def test_default_profile_uses_provider_active_slot(self) -> None:
+        # PP is inserted first so the old cross-provider first-match logic would
+        # resolve the wrong profile for an Azure call with no explicit ID.
+        self.authority.registry.profiles = {self.pp.profile_id: self.pp, self.azure.profile_id: self.azure}
+        self.assertEqual(
+            self.service._require_azure_profile(None).profile_id,
+            self.azure.profile_id,
+        )
+        self.assertTrue(self.service.list_tenants()["success"])
 
     def test_missing_profile_raises(self) -> None:
         with self.assertRaises(KeyError):

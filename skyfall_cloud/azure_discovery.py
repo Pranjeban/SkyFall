@@ -51,6 +51,8 @@ class AzureDiscoveryService:
     # -- internals ---------------------------------------------------------
 
     def _require_azure_profile(self, profile_id: str | None) -> Any:
+        if profile_id is None:
+            profile_id = self.identity.registry.get_active_profile_id("azure")
         profile = self.identity.registry.get_profile(profile_id)
         if profile is None:
             raise KeyError("Select an Azure identity profile before discovering Azure resources.")

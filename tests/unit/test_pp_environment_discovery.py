@@ -25,11 +25,15 @@ class FakeProfile:
 class FakeRegistry:
     def __init__(self) -> None:
         self.profiles: dict[str, FakeProfile] = {}
+        self.active: dict[str, str] = {}
 
     def get_profile(self, profile_id: str | None) -> FakeProfile | None:
         if profile_id is None:
             return next(iter(self.profiles.values()), None)
         return self.profiles.get(profile_id)
+
+    def get_active_profile_id(self, provider: str) -> str | None:
+        return self.active.get(provider)
 
 
 class FakeAuthority:
@@ -86,6 +90,10 @@ class TestPowerPlatformDiscovery(unittest.TestCase):
         self.pp = FakeProfile("pp-1")
         self.azure = FakeProfile("az-1", "azure")
         self.authority.registry.profiles = {self.pp.profile_id: self.pp, self.azure.profile_id: self.azure}
+        self.authority.registry.active = {
+            "azure": self.azure.profile_id,
+            "powerplatform": self.pp.profile_id,
+        }
         self.http = FakeHttp()
         self.service = PowerPlatformDiscovery(self.authority, http_client=self.http)
 
@@ -110,6 +118,16 @@ class TestPowerPlatformDiscovery(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.service.list_environments(self.azure.profile_id)
         self.assertEqual(self.http.calls, [])
+
+    def test_default_profile_uses_provider_active_slot(self) -> None:
+        # Azure is inserted first so the old cross-provider first-match logic
+        # would resolve the wrong profile for a Power Platform call.
+        self.authority.registry.profiles = {self.azure.profile_id: self.azure, self.pp.profile_id: self.pp}
+        self.assertEqual(
+            self.service._require_pp_profile(None).profile_id,
+            self.pp.profile_id,
+        )
+        self.assertTrue(self.service.list_environments()["success"])
 
     def test_get_environment_details_and_sanitization(self) -> None:
         record = self.service.get_environment(ENV_ID)

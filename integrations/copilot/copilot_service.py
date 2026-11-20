@@ -3,8 +3,9 @@
 The worker owns a dedicated asyncio loop outside the Qt UI thread. Each local
 conversation maps to a stable Copilot session ID. Sessions expose read-only
 core, workspace metadata, Azure account/subscription and Power Platform
-profile/environment discovery tools. No resource-write, shell, source-code or
-script-execution tools are enabled in v0.9.2.
+profile/environment discovery tools, plus the v1.1 unified-cloud intelligence
+tool set. No resource-write, shell, source-code or script-execution tools are
+enabled.
 """
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ IDENTITY AND WORKING STYLE
   Power Automate, PowerShell, Python, cloud operations, and engineering
   automation. Additional integrations may be added later.
 
-CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.2
+CURRENT CAPABILITY BOUNDARY
 - SKYFALL Core exposes read-only status and capability-discovery tools.
 - SKYFALL Workspace exposes read-only workspace listing, metadata search,
   file description, and aggregate index-status tools.
@@ -97,6 +98,17 @@ CURRENT CAPABILITY BOUNDARY — SKYFALL v0.9.2
   performs that operation and returns a successful result.
 - If a requested operation is unavailable, explain the current limitation and
   give a practical plan without pretending that it was executed.
+- Unified identity keeps Azure and Power Platform MSAL sessions independent.
+  Identity health never returns access tokens, refresh tokens or cache contents.
+- Universal Copilot routing (`route_copilot_intent`) only maps a request to a
+  read-only capability; it never executes the capability itself. Mutating
+  requests require explicit human approval through the controlled-operations
+  plan gate.
+- `build_operation_plan` only classifies and plans. `governance_summary` reports
+  in-memory audit counts. No tool in this release modifies cloud resources.
+- Cross-platform correlation, cloud orchestration, monitoring, reporting and
+  catalog tools are read-only and secret-safe: they return metadata summaries,
+  never credentials, flow definitions or connection secrets.
 
 PRIVACY AND SECURITY
 - Never ask the user to paste passwords, access tokens, client secrets,
@@ -147,6 +159,19 @@ MCP_TOOL_NAMES = (
     "get_microsoft_auth_job_status",
     "inventory_azure_function_apps",
     "inventory_power_automate_flows",
+    "get_unified_identity_health",
+    "discover_azure_footprint",
+    "inventory_azure_resources",
+    "discover_powerplatform_environments",
+    "describe_powerplatform_environment",
+    "inspect_powerplatform_catalog",
+    "run_cloud_orchestration",
+    "correlate_cross_platform",
+    "cloud_health_report",
+    "build_executive_report",
+    "governance_summary",
+    "route_copilot_intent",
+    "build_operation_plan",
 )
 MCP_AVAILABLE_TOOL_IDS = tuple(
     f"mcp:{MCP_SERVER_KEY}-{tool_name}" for tool_name in MCP_TOOL_NAMES
@@ -303,15 +328,17 @@ class CopilotWorker(QThread):
 
             tool_name = self._extract_permission_tool_name(request)
             if tool_name in allowed_names:
-                # Only explicitly registered read-only core, workspace metadata,
-                # and Microsoft account/environment discovery tools receive a
-                # one-time approval. No write, shell or script tools are allowed.
+                # Only explicitly registered read-only core/workspace/cloud
+                # discovery, unified-cloud intelligence and plan-only review
+                # tools receive a one-time approval. No write, shell or script
+                # tools are allowed.
                 return approve_once_type()
 
             return reject_type(
                 feedback=(
-                "SKYFALL v0.9.2 permits read-only core/workspace/cloud discovery, Azure Function App and Power Automate flow inventory, and explicitly "
-                "requested interactive Microsoft sign-in tools. Resource-write, source-code, "
+                "SKYFALL permits read-only core/workspace/cloud discovery, unified-cloud "
+                "intelligence, plan-only operation review, and explicitly requested "
+                "interactive Microsoft sign-in tools. Resource-write, source-code, "
                 "arbitrary shell and script-execution tools are denied."
                 )
             )
@@ -363,8 +390,8 @@ class CopilotWorker(QThread):
         common = {
             "model": "auto",
             "working_directory": self._working_directory(),
-            # Explicit allow-list: read-only core/workspace/account discovery and
-            # read-only Azure Function App and Power Automate cloud-flow inventory.
+            # Explicit allow-list: read-only core/workspace/account discovery,
+            # cloud inventory, unified-cloud intelligence and plan-only review.
             # No resource-write, shell, source-code-read or script-execution tools are exposed.
             "available_tools": list(MCP_AVAILABLE_TOOL_IDS),
             "mcp_servers": self._mcp_server_configuration(),

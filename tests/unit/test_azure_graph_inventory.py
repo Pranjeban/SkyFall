@@ -28,11 +28,15 @@ class FakeProfile:
 class FakeRegistry:
     def __init__(self) -> None:
         self.profiles: dict[str, FakeProfile] = {}
+        self.active: dict[str, str] = {}
 
     def get_profile(self, profile_id: str | None) -> FakeProfile | None:
         if profile_id is None:
             return next(iter(self.profiles.values()), None)
         return self.profiles.get(profile_id)
+
+    def get_active_profile_id(self, provider: str) -> str | None:
+        return self.active.get(provider)
 
 
 class FakeAuthority:
@@ -61,11 +65,11 @@ class FakeHttp:
                 "columns": [
                     {"name": "id"}, {"name": "name"}, {"name": "type"},
                     {"name": "location"}, {"name": "resourceGroup"},
-                    {"name": "subscriptionId"}, {"name": "kind"},
+                    {"name": "subscriptionId"}, {"name": "kind"}, {"name": "tags"},
                 ],
                 "rows": [
-                    ["/subs/s1/vm1", "vm1", "Microsoft.Compute/virtualMachines", "uksouth", "rg1", "s1", ""],
-                    ["/subs/s1/fn1", "fn1", "Microsoft.Web/sites", "uksouth", "rg1", "s1", "functionapp"],
+                    ["/subs/s1/vm1", "vm1", "Microsoft.Compute/virtualMachines", "uksouth", "rg1", "s1", "", {"env": "prod"}],
+                    ["/subs/s1/fn1", "fn1", "Microsoft.Web/sites", "uksouth", "rg1", "s1", "functionapp", {}],
                 ],
             }
         })
@@ -92,6 +96,10 @@ class TestAzureResourceInventory(unittest.TestCase):
         self.azure = FakeProfile("azure-1")
         self.pp = FakeProfile("pp-1", "powerplatform")
         self.authority.registry.profiles = {self.azure.profile_id: self.azure, self.pp.profile_id: self.pp}
+        self.authority.registry.active = {
+            "azure": self.azure.profile_id,
+            "powerplatform": self.pp.profile_id,
+        }
         self.http = FakeHttp()
         self.inventory = AzureResourceInventory(self.authority, http_client=self.http)
 
@@ -106,6 +114,15 @@ class TestAzureResourceInventory(unittest.TestCase):
         self.assertIn("Resources", call["json"]["query"])
         self.assertNotIn(TOKEN, str(result))
         self.assertNotIn(TOKEN, str(call["json"]))
+
+    def test_query_result_preserves_tag_dicts_for_gap_analysis(self) -> None:
+        result = self.inventory.query_resources(["s1"])
+        self.assertEqual(result["resources"][0]["tags"], {"env": "prod"})
+        missing = self.inventory.find_missing_tags(result["resources"], ["env", "owner"])
+        self.assertEqual([item["resource"] for item in missing], [
+            "/subs/s1/vm1", "/subs/s1/fn1",
+        ])
+        self.assertEqual(missing[0]["missing_tags"], ["owner"])
 
     def test_category_filter_builds_narrower_query(self) -> None:
         all_query = self.inventory.build_query()

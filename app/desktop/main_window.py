@@ -2987,24 +2987,25 @@ class MainWindow(QMainWindow):
         self._set_status_value("AI RUNTIME", "Connected")
         self._set_status_value("SKYFALL AI runtime", "Connected", "good")
         self._set_status_value("AI provider", "GitHub Copilot connected", "good")
-        self._set_status_value("MCP Tools", "20 tools · read-only + sign-in", "good")
-        self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure + Power Automate inventory", "good")
+        self._set_status_value("MCP Tools", "33 tools · read-only + sign-in", "good")
+        self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure + Power Platform + unified cloud intelligence", "good")
         self.top_state.setText("●  COPILOT + MCP CONNECTED")
         self.top_state.setObjectName("statusGood")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
         self.chat_subtitle.setText(
-            "Connected to GitHub Copilot and SKYFALL's local MCP server. Twenty tools are registered for "
+            "Connected to GitHub Copilot and SKYFALL's local MCP server. Thirty-three tools are registered for "
             "core status, approved workspace metadata, Azure account/subscription discovery, Power Platform "
-            "profile/environment discovery, Azure Function App and Power Automate flow inventory, and explicitly requested Microsoft sign-in. Resource changes and "
-            "script execution are not enabled."
+            "profile/environment discovery, Azure Function App and Power Automate flow inventory, unified cloud "
+            "intelligence, cross-platform correlation, monitoring, reporting and plan-only operations. "
+            "Explicitly requested Microsoft sign-in is available; resource changes and script execution are not enabled."
         )
         self.chat_input.setEnabled(True)
         self.chat_send_button.setEnabled(True)
         self.new_chat_button.setEnabled(True)
         self.history_list.setEnabled(True)
         self._refresh_conversation_list(select_id=self.current_conversation.id)
-        self.statusBar().showMessage("SKYFALL AI connected · 20 MCP tools available · general script execution disabled")
+        self.statusBar().showMessage("SKYFALL AI connected · 33 MCP tools available · general script execution disabled")
 
     def _on_ai_connection_failed(self, error: str) -> None:
         self._set_status_value("AI RUNTIME", "Connection failed")

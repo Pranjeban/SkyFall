@@ -217,9 +217,9 @@ async def run_server_test(local_app_data: Path) -> int:
         status_payload = json_payload(status, "get_skyfall_status")
         if status_payload.get("application") != "SKYFALL":
             raise RuntimeError("Status tool returned an unexpected application name.")
-        if status_payload.get("enabled_tools") != 20:
+        if status_payload.get("enabled_tools") != 33:
             raise RuntimeError(
-                "Status tool did not report twenty enabled tools; "
+                "Status tool did not report thirty-three enabled tools; "
                 f"got {status_payload.get('enabled_tools')!r}."
             )
 

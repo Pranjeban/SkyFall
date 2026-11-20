@@ -29,11 +29,15 @@ class FakeProfile:
 class FakeRegistry:
     def __init__(self) -> None:
         self.profiles: dict[str, FakeProfile] = {}
+        self.active: dict[str, str] = {}
 
     def get_profile(self, profile_id: str | None) -> FakeProfile | None:
         if profile_id is None:
             return next(iter(self.profiles.values()), None)
         return self.profiles.get(profile_id)
+
+    def get_active_profile_id(self, provider: str) -> str | None:
+        return self.active.get(provider)
 
 
 class FakeAuthority:
@@ -92,6 +96,10 @@ class TestPowerPlatformCatalog(unittest.TestCase):
         self.pp = FakeProfile("pp-1")
         self.azure = FakeProfile("az-1", "azure")
         self.authority.registry.profiles = {self.pp.profile_id: self.pp, self.azure.profile_id: self.azure}
+        self.authority.registry.active = {
+            "azure": self.azure.profile_id,
+            "powerplatform": self.pp.profile_id,
+        }
         self.http = FakeHttp()
         self.catalog = PowerPlatformCatalog(self.authority, http_client=self.http)
 
@@ -143,6 +151,10 @@ class TestPowerPlatformCatalog(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.catalog.list_apps(ENV_ID, self.azure.profile_id)
         self.assertEqual(self.http.calls, [])
+
+    def test_default_profile_uses_pp_active_slot(self) -> None:
+        self.authority.registry.profiles = {self.azure.profile_id: self.azure, self.pp.profile_id: self.pp}
+        self.assertTrue(self.catalog.list_flows(ENV_ID)["success"])
 
     def test_invalid_environment_id_rejected(self) -> None:
         with self.assertRaises(PowerPlatformCatalogError):

@@ -48,6 +48,7 @@ RESOURCE_TYPE_FILTERS: dict[str, str] = {
 
 _RESULT_FIELDS = (
     "id", "name", "type", "location", "resourceGroup", "subscriptionId", "kind",
+    "tags",
 )
 
 
@@ -158,10 +159,16 @@ class AzureResourceInventory:
             rows = self._rows_from_payload(response.json())
         except ValueError as exc:
             raise AzureInventoryError("Azure Resource Graph returned an unexpected response.") from exc
-        resources = [
-            {field: str(row[field]) for field in _RESULT_FIELDS if field in row and row[field] is not None}
-            for row in rows
-        ][:max_results]
+        resources: list[dict[str, Any]] = []
+        for row in rows:
+            clean: dict[str, Any] = {}
+            for field in _RESULT_FIELDS:
+                if field not in row or row[field] is None:
+                    continue
+                value = row[field]
+                clean[field] = value if field == "tags" and isinstance(value, dict) else str(value)
+            resources.append(clean)
+        resources = resources[:max_results]
         return {
             "success": True,
             "resources": resources,

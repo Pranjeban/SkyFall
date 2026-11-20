@@ -47,8 +47,8 @@ class TestPhase9UIAcceptance(unittest.TestCase):
     # --- Prior fix SP-064: tool-count wording -----------------------------
 
     def test_tool_count_wording_present(self) -> None:
-        self.assertIn("20 tools", self.main_window)
-        self.assertIn("Twenty tools", self.main_window)
+        self.assertIn("33 tools", self.main_window)
+        self.assertIn("Thirty-three tools", self.main_window)
 
     def test_no_stale_tool_count_wording(self) -> None:
         for source in self.desktop_sources:

@@ -78,6 +78,17 @@ class TestControlledOperations(unittest.TestCase):
             self.service.verify_approval(approved, approved["approval_token"], approver=APPROVER)
         )
 
+    def test_approval_token_cannot_be_replayed(self) -> None:
+        approved = self.service.request_approval(
+            self.service.build_plan(self._reversible()), approver=APPROVER
+        )
+        self.assertTrue(
+            self.service.verify_approval(approved, approved["approval_token"], approver=APPROVER)
+        )
+        self.assertFalse(
+            self.service.verify_approval(approved, approved["approval_token"], approver=APPROVER)
+        )
+
     def test_tampered_plan_rejected(self) -> None:
         approved = self.service.request_approval(
             self.service.build_plan(self._reversible()), approver=APPROVER

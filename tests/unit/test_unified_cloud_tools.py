@@ -176,7 +176,7 @@ class TestUnifiedCloudTools(unittest.TestCase):
         self.assertNotIn(TOKEN, raw)
         self.assertFalse(self._parse(raw)["success"])
 
-    def test_mcp_server_exposes_all_five_new_tools(self) -> None:
+    def test_mcp_server_exposes_all_v11_tools(self) -> None:
         from pathlib import Path
 
         server = (Path(__file__).resolve().parents[2] / "skyfall_mcp" / "server.py").read_text(
@@ -185,7 +185,10 @@ class TestUnifiedCloudTools(unittest.TestCase):
         for name in (
             "get_unified_identity_health", "discover_azure_footprint",
             "inventory_azure_resources", "discover_powerplatform_environments",
-            "describe_powerplatform_environment",
+            "describe_powerplatform_environment", "inspect_powerplatform_catalog",
+            "run_cloud_orchestration", "correlate_cross_platform",
+            "cloud_health_report", "build_executive_report", "governance_summary",
+            "route_copilot_intent", "build_operation_plan",
         ):
             with self.subTest(tool=name):
                 self.assertIn(f"def {name}(", server)

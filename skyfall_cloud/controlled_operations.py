@@ -16,6 +16,7 @@ import hmac
 import json
 import re
 import secrets
+import threading
 import time
 from dataclasses import dataclass, field
 from enum import Enum
@@ -79,6 +80,8 @@ class ControlledOperationsService:
     ) -> None:
         self._secret = approval_secret or secrets.token_bytes(32)
         self._now = now or time.time
+        self._consumed_tokens: set[str] = set()
+        self._token_lock = threading.Lock()
 
     # -- validation / classification ---------------------------------------
 
@@ -220,7 +223,14 @@ class ControlledOperationsService:
         if expiry <= int(self._now()):
             return False
         expected = self._sign(self._fingerprint(plan), approver_clean, expiry)
-        return hmac.compare_digest(signature, expected)
+        if not hmac.compare_digest(signature, expected):
+            return False
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+        with self._token_lock:
+            if digest in self._consumed_tokens:
+                return False
+            self._consumed_tokens.add(digest)
+        return True
 
     def simulate(
         self,

@@ -7,6 +7,7 @@ returned entries are copies and every string is redacted before storage.
 
 from __future__ import annotations
 
+import copy
 import re
 import threading
 from datetime import datetime, timezone
@@ -84,7 +85,7 @@ class CloudGovernanceService:
                 "details": self.redact(details),
             }
             self._entries.append(entry)
-            return dict(entry)
+            return copy.deepcopy(entry)
 
     def entries(
         self,
@@ -94,7 +95,7 @@ class CloudGovernanceService:
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
         with self._lock:
-            rows = [dict(entry) for entry in self._entries]
+            rows = copy.deepcopy(self._entries)
         if event is not None:
             rows = [row for row in rows if row["event"] == event]
         if provider is not None:
@@ -128,7 +129,7 @@ class CloudGovernanceService:
             "allowed": allowed,
             "requires_approval": bool(destructive or requires_approval),
             "reasons": reasons,
-            "operation": op[:200],
+            "operation": self.redact(op[:200]),
             "provider": self.redact(provider),
             "profile_id": self.redact(profile_id),
         }

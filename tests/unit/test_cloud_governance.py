@@ -21,6 +21,13 @@ class TestCloudGovernance(unittest.TestCase):
         self.assertNotIn(TOKEN, str(once))
         self.assertEqual(once["monkey"], "safe")
 
+    def test_policy_decision_redacts_operation(self) -> None:
+        decision = self.service.evaluate_policy(
+            f"azure.get_resource with Authorization: Bearer {TOKEN}"
+        )
+        self.assertNotIn(TOKEN, str(decision))
+        self.assertIn("[REDACTED]", decision["operation"])
+
     def test_record_redacts_and_sequences(self) -> None:
         first = self.service.record(
             "tool_call", provider="azure", profile_id="az-1",
@@ -34,12 +41,17 @@ class TestCloudGovernance(unittest.TestCase):
         self.assertIsInstance(datetime.fromisoformat(first["timestamp"]), datetime)
 
     def test_entries_are_copies_and_filtered(self) -> None:
-        self.service.record("tool_call", provider="azure")
+        self.service.record(
+            "tool_call", provider="azure", details={"nested": {"value": "safe"}}
+        )
         self.service.record("policy", provider="powerplatform")
         rows = self.service.entries(event="tool_call")
         self.assertEqual(len(rows), 1)
         rows[0]["event"] = "mutated"
-        self.assertEqual(self.service.entries()[0]["event"], "tool_call")
+        rows[0]["details"]["nested"]["value"] = "tampered"
+        stored = self.service.entries()[0]
+        self.assertEqual(stored["event"], "tool_call")
+        self.assertEqual(stored["details"]["nested"]["value"], "safe")
         self.assertEqual(len(self.service.entries(provider="powerplatform")), 1)
         self.assertEqual(len(self.service.entries(limit=1)), 1)
 

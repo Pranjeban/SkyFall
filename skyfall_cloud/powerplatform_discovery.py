@@ -45,6 +45,8 @@ class PowerPlatformDiscovery:
     # -- internals ---------------------------------------------------------
 
     def _require_pp_profile(self, profile_id: str | None) -> Any:
+        if profile_id is None:
+            profile_id = self.identity.registry.get_active_profile_id("powerplatform")
         profile = self.identity.registry.get_profile(profile_id)
         if profile is None:
             raise KeyError("Select a Power Platform identity profile before discovery.")
