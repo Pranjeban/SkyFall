@@ -12,9 +12,9 @@ class CapabilityRegistryTests(unittest.TestCase):
     def setUp(self) -> None:
         self.registry = CapabilityRegistry.default()
 
-    def test_catalogue_contains_twenty_enabled_tools(self) -> None:
+    def test_catalogue_contains_all_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 20)
+        self.assertEqual(len(capabilities), 33)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -38,6 +38,19 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "get_microsoft_auth_job_status",
                 "inventory_azure_function_apps",
                 "inventory_power_automate_flows",
+                "get_unified_identity_health",
+                "discover_azure_footprint",
+                "inventory_azure_resources",
+                "discover_powerplatform_environments",
+                "describe_powerplatform_environment",
+                "inspect_powerplatform_catalog",
+                "run_cloud_orchestration",
+                "correlate_cross_platform",
+                "cloud_health_report",
+                "build_executive_report",
+                "governance_summary",
+                "route_copilot_intent",
+                "build_operation_plan",
             },
         )
 
@@ -71,10 +84,17 @@ class CapabilityRegistryTests(unittest.TestCase):
     def test_category_filter(self) -> None:
         self.assertEqual(len(self.registry.list(category="core")), 3)
         self.assertEqual(len(self.registry.list(category="workspace")), 4)
-        self.assertEqual(len(self.registry.list(category="azure")), 4)
+        self.assertEqual(len(self.registry.list(category="azure")), 6)
         self.assertEqual(len(self.registry.list(category="azure_resources")), 1)
-        self.assertEqual(len(self.registry.list(category="power_platform")), 4)
+        self.assertEqual(len(self.registry.list(category="power_platform")), 7)
         self.assertEqual(len(self.registry.list(category="power_platform_resources")), 1)
+        for category, expected in (
+            ("identity", 1), ("orchestration", 1), ("cross_platform", 1),
+            ("monitoring", 1), ("reporting", 1), ("governance", 1),
+            ("copilot", 1), ("operations", 1),
+        ):
+            with self.subTest(category=category):
+                self.assertEqual(len(self.registry.list(category=category)), expected)
 
     def test_duplicate_ids_are_rejected(self) -> None:
         original = json.loads(

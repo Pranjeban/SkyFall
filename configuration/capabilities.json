@@ -556,6 +556,372 @@
       "limitations": [
         "Stores a public app identifier only; no client secret or token is stored."
       ]
+    },
+    {
+      "id": "unified.get_identity_health",
+      "name": "Check unified Microsoft identity health",
+      "tool_name": "get_unified_identity_health",
+      "category": "identity",
+      "description": "Reports secret-free health for all registered MSAL identity profiles across Azure and Power Platform.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "limitations": [
+        "Never returns tokens, client secrets or cache material.",
+        "Requires profiles registered in the unified MSAL identity authority."
+      ]
+    },
+    {
+      "id": "unified.discover_azure_footprint",
+      "name": "Discover Azure footprint",
+      "tool_name": "discover_azure_footprint",
+      "category": "azure",
+      "description": "Discovers Azure tenants, subscriptions and management groups for one MSAL Azure profile.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "description": "Optional Azure MSAL profile ID; empty uses the active Azure profile."
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Read-only Azure Resource Manager discovery.",
+        "An Azure profile cannot use Power Platform credentials."
+      ]
+    },
+    {
+      "id": "unified.inventory_azure_resources",
+      "name": "Inventory Azure resources",
+      "tool_name": "inventory_azure_resources",
+      "category": "azure",
+      "description": "Inventories spec-defined Azure resource categories across explicit subscriptions using Azure Resource Graph.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "subscription_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicit Azure subscription IDs to query."
+          },
+          "categories": {
+            "type": "string",
+            "description": "Optional comma-separated resource categories; empty queries all supported categories."
+          }
+        },
+        "required": [
+          "subscription_ids"
+        ]
+      },
+      "limitations": [
+        "Returns resource metadata only; no secrets, keys or connection strings.",
+        "Results are capped at 1000 resources by default."
+      ]
+    },
+    {
+      "id": "unified.discover_powerplatform_environments",
+      "name": "Discover Power Platform environments",
+      "tool_name": "discover_powerplatform_environments",
+      "category": "power_platform",
+      "description": "Discovers Power Platform environments for one independent MSAL profile.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "description": "Optional Power Platform MSAL profile ID; empty uses the active profile."
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Power Platform sessions are independent from Azure sessions.",
+        "Requires Power Platform API consent on the Microsoft Entra app."
+      ]
+    },
+    {
+      "id": "unified.describe_powerplatform_environment",
+      "name": "Inspect a Power Platform environment",
+      "tool_name": "describe_powerplatform_environment",
+      "category": "power_platform",
+      "description": "Inspects one selected environment's metadata, security flags, capacity hints and owners.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "description": "GUID of an environment selected from discovery results."
+          }
+        },
+        "required": [
+          "environment_id"
+        ]
+      },
+      "limitations": [
+        "Requires an explicit environment GUID; no wildcard scanning.",
+        "Returns metadata only, never credentials or connection details."
+      ]
+    },
+    {
+      "id": "unified.inspect_powerplatform_catalog",
+      "name": "Inspect Power Platform catalog",
+      "tool_name": "inspect_powerplatform_catalog",
+      "category": "power_platform",
+      "description": "Inventories flow, app and connection metadata for one selected environment.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "environment_id": {
+            "type": "string",
+            "description": "GUID from environment discovery."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional Power Platform profile ID."
+          }
+        },
+        "required": [
+          "environment_id"
+        ]
+      },
+      "limitations": [
+        "Returns metadata only; flow definitions and connection secrets are excluded."
+      ]
+    },
+    {
+      "id": "unified.run_cloud_orchestration",
+      "name": "Run correlated cloud investigation",
+      "tool_name": "run_cloud_orchestration",
+      "category": "orchestration",
+      "description": "Runs a read-only multi-step investigation across Azure and Power Platform.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "azure_profile_id": {
+            "type": "string"
+          },
+          "pp_profile_id": {
+            "type": "string"
+          },
+          "subscription_ids": {
+            "type": "string",
+            "description": "Comma-separated subscription IDs."
+          },
+          "environment_id": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Every step is read-only and failures are isolated.",
+        "Azure and Power Platform profiles are kept independent."
+      ]
+    },
+    {
+      "id": "unified.correlate_cross_platform",
+      "name": "Correlate cross-platform inventory",
+      "tool_name": "correlate_cross_platform",
+      "category": "cross_platform",
+      "description": "Correlates supplied Azure and Power Platform inventory JSON into dependencies and gaps.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "azure_resources_json": {
+            "type": "string"
+          },
+          "pp_environments_json": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Best-effort name/ID/tag heuristic; no live lookup.",
+        "Never echoes credentials."
+      ]
+    },
+    {
+      "id": "unified.cloud_health_report",
+      "name": "Cloud health and anomaly report",
+      "tool_name": "cloud_health_report",
+      "category": "monitoring",
+      "description": "Detects inactive resources, state anomalies and duplicates from supplied JSON.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "azure_resources_json": {
+            "type": "string"
+          },
+          "pp_environments_json": {
+            "type": "string"
+          },
+          "pp_flows_json": {
+            "type": "string"
+          },
+          "pp_connections_json": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Pure offline analysis; no cloud calls.",
+        "Malformed timestamps are skipped."
+      ]
+    },
+    {
+      "id": "unified.build_executive_report",
+      "name": "Build executive cloud report",
+      "tool_name": "build_executive_report",
+      "category": "reporting",
+      "description": "Builds a secret-safe executive report from supplied cloud inventory JSON.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "azure_overview_json": {
+            "type": "string"
+          },
+          "pp_environments_json": {
+            "type": "string"
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Recursively redacts token/secret/password/key fields.",
+        "No file writes."
+      ]
+    },
+    {
+      "id": "unified.governance_summary",
+      "name": "Governance and audit summary",
+      "tool_name": "governance_summary",
+      "category": "governance",
+      "description": "Reports in-memory audit counts and the read-only policy boundary.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "limitations": [
+        "In-memory only; no database or disk persistence.",
+        "Never stores credentials."
+      ]
+    },
+    {
+      "id": "unified.route_copilot_intent",
+      "name": "Route a Copilot request",
+      "tool_name": "route_copilot_intent",
+      "category": "copilot",
+      "description": "Maps a natural-language request to a read-only capability without executing it.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "description": "User request text."
+          }
+        },
+        "required": [
+          "utterance"
+        ]
+      },
+      "limitations": [
+        "Never executes an operation.",
+        "Mutating requests require explicit approval."
+      ]
+    },
+    {
+      "id": "unified.build_operation_plan",
+      "name": "Build an operation plan",
+      "tool_name": "build_operation_plan",
+      "category": "operations",
+      "description": "Builds and policy-evaluates an operation plan; does not execute it.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation",
+          "provider",
+          "target"
+        ]
+      },
+      "limitations": [
+        "Execution is never enabled by this tool.",
+        "Destructive operations are blocked by policy."
+      ]
     }
   ]
 }

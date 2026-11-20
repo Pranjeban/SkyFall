@@ -28,7 +28,7 @@ CAPABILITIES_JSON = REPO_ROOT / "configuration" / "capabilities.json"
 MCP_SERVER_PY = REPO_ROOT / "skyfall_mcp" / "server.py"
 COMMAND_RUNNER_PY = REPO_ROOT / "skyfall_cloud" / "command_runner.py"
 
-EXPECTED_CAPABILITY_COUNT = 20
+EXPECTED_CAPABILITY_COUNT = 33
 
 UNWIRED_CLOUD_SERVICE_MODULES = (
     "skyfall_cloud.identity_service",
@@ -103,7 +103,7 @@ class BackendAcceptanceMcpParityTests(unittest.TestCase):
         self.entries = self.catalogue.get("capabilities", [])
         self.server_source = _read_source(MCP_SERVER_PY)
 
-    def test_capability_catalogue_declares_twenty_enabled_capabilities(self) -> None:
+    def test_capability_catalogue_declares_all_enabled_capabilities(self) -> None:
         self.assertEqual(len(self.entries), EXPECTED_CAPABILITY_COUNT)
         capability_ids = [str(entry["id"]) for entry in self.entries]
         self.assertEqual(len(set(capability_ids)), EXPECTED_CAPABILITY_COUNT)

@@ -37,6 +37,21 @@ from skyfall_mcp.tools.core import (
     get_skyfall_status as _get_skyfall_status,
     list_skyfall_capabilities as _list_skyfall_capabilities,
 )
+from skyfall_mcp.tools.unified_cloud import (
+    build_executive_report as _build_executive_report,
+    build_operation_plan as _build_operation_plan,
+    cloud_health_report as _cloud_health_report,
+    correlate_cross_platform as _correlate_cross_platform,
+    describe_powerplatform_environment as _describe_powerplatform_environment,
+    discover_azure_footprint as _discover_azure_footprint,
+    discover_powerplatform_environments as _discover_powerplatform_environments,
+    get_unified_identity_health as _get_unified_identity_health,
+    governance_summary as _governance_summary,
+    inspect_powerplatform_catalog as _inspect_powerplatform_catalog,
+    inventory_azure_resources as _inventory_azure_resources,
+    route_copilot_intent as _route_copilot_intent,
+    run_cloud_orchestration as _run_cloud_orchestration,
+)
 
 # MCP stdio uses stdout for protocol frames. All diagnostics must go to stderr.
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
@@ -199,6 +214,105 @@ def inventory_power_automate_flows(
     Flow definitions, connection details and secrets are excluded.
     """
     return _inventory_power_automate_flows(environment_id, environment_name, generate_excel)
+
+
+@mcp.tool(title="Check unified Microsoft identity health")
+def get_unified_identity_health() -> str:
+    """Report secret-free health for all registered MSAL identity profiles."""
+    return _get_unified_identity_health()
+
+
+@mcp.tool(title="Discover Azure footprint")
+def discover_azure_footprint(profile_id: str = "") -> str:
+    """Discover Azure tenants, subscriptions and management groups for one MSAL Azure profile."""
+    return _discover_azure_footprint(profile_id)
+
+
+@mcp.tool(title="Inventory Azure resources")
+def inventory_azure_resources(subscription_ids: list[str], categories: str = "") -> str:
+    """Inventory spec-defined Azure resource categories across explicit subscription IDs."""
+    return _inventory_azure_resources(subscription_ids, categories)
+
+
+@mcp.tool(title="Discover Power Platform environments")
+def discover_powerplatform_environments(profile_id: str = "") -> str:
+    """Discover Power Platform environments for one independent MSAL profile."""
+    return _discover_powerplatform_environments(profile_id)
+
+
+@mcp.tool(title="Inspect a Power Platform environment")
+def describe_powerplatform_environment(environment_id: str) -> str:
+    """Inspect one selected environment's metadata, security flags and capacity."""
+    return _describe_powerplatform_environment(environment_id)
+
+
+@mcp.tool(title="Inspect Power Platform catalog")
+def inspect_powerplatform_catalog(environment_id: str, profile_id: str = "") -> str:
+    """Inventory flow, app and connection metadata for one selected environment."""
+    return _inspect_powerplatform_catalog(environment_id, profile_id)
+
+
+@mcp.tool(title="Run correlated cloud investigation")
+def run_cloud_orchestration(
+    azure_profile_id: str = "",
+    pp_profile_id: str = "",
+    subscription_ids: str = "",
+    environment_id: str = "",
+) -> str:
+    """Run a read-only correlated investigation across both cloud platforms."""
+    return _run_cloud_orchestration(azure_profile_id, pp_profile_id, subscription_ids, environment_id)
+
+
+@mcp.tool(title="Correlate cross-platform inventory")
+def correlate_cross_platform(
+    azure_resources_json: str = "",
+    pp_environments_json: str = "",
+) -> str:
+    """Correlate supplied Azure and Power Platform inventory JSON."""
+    return _correlate_cross_platform(azure_resources_json, pp_environments_json)
+
+
+@mcp.tool(title="Cloud health and anomaly report")
+def cloud_health_report(
+    azure_resources_json: str = "",
+    pp_environments_json: str = "",
+    pp_flows_json: str = "",
+    pp_connections_json: str = "",
+) -> str:
+    """Detect inactive resources, state anomalies and duplicates from supplied JSON."""
+    return _cloud_health_report(azure_resources_json, pp_environments_json, pp_flows_json, pp_connections_json)
+
+
+@mcp.tool(title="Build executive cloud report")
+def build_executive_report(
+    azure_overview_json: str = "",
+    pp_environments_json: str = "",
+) -> str:
+    """Build a secret-safe executive report from supplied cloud inventory JSON."""
+    return _build_executive_report(azure_overview_json, pp_environments_json)
+
+
+@mcp.tool(title="Governance and audit summary")
+def governance_summary() -> str:
+    """Report audit counts and the read-only policy boundary."""
+    return _governance_summary()
+
+
+@mcp.tool(title="Route a Copilot request")
+def route_copilot_intent(utterance: str) -> str:
+    """Map a natural-language request to a read-only capability without executing it."""
+    return _route_copilot_intent(utterance)
+
+
+@mcp.tool(title="Build an operation plan")
+def build_operation_plan(
+    operation: str,
+    provider: str,
+    target: str,
+    profile_id: str = "",
+) -> str:
+    """Build and policy-evaluate an operation plan; never executes it."""
+    return _build_operation_plan(operation, provider, target, profile_id)
 
 
 if __name__ == "__main__":
