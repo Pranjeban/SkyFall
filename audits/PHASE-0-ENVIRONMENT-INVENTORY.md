@@ -124,3 +124,94 @@
 ## 9. Phase 0 exit assessment
 
 Environment, Git boundaries, agent availability, test-command status, generated/runtime data, and initial risks are understood. No application source, database, or existing report was modified. **Ready to request approval for Phase 1.**
+
+---
+
+## 10. Phase 0 refresh — 2026-11-20 (original content above preserved)
+
+**Reason for refresh:** the authoritative specification file, Git HEAD, the working tree, and the Python environment all changed since the 2026-11-19 inventory. This section supersedes specific stale facts in §§1–8 without removing them.
+
+### 10.1 Material change — authoritative specification
+
+| Item | 2026-11-19 record (stale) | 2026-11-20 verified |
+|---|---|---|
+| Spec file | `Images/V.1..0.1.md` titled "SKYFALL v1.1 — Universal Cloud Intelligence" | Same path, now titled **"SKYFALL v1.0.1 — PRINCIPAL ENGINEERING ORCHESTRATION DIRECTIVE"** |
+| Spec size | — | 30,316 bytes, 757 lines, `LastWriteTime` 2026-11-20 14:19:09 |
+| Spec content | Large Azure + Power Platform cloud-platform scope | The phase-gated orchestration directive (15 numbered sections + final instruction) |
+
+Evidence: `Select-String -Path "C:\Users\pranj\OneDrive\Documents\Skyfall(1)\Images\V.1..0.1.md" -Pattern '^#{1,3} '`. Risk R-01 must be re-evaluated in Phase 4 against this actual content.
+
+### 10.2 Runtime and environment (verified 2026-11-20)
+
+| Item | Value | Evidence |
+|---|---|---|
+| System Python | 3.15.2 (`C:\Python315\python.exe`) | `--version` |
+| Working venv | `venv_skyfall\` — Python 3.11.0, pytest 9.2.0, `requirements.txt` deps installed | `venv_skyfall\Scripts\python.exe -m pip list` |
+| `.venv\` | **Still broken** — points to missing `C:\Users\pkara\...\Python311\python.exe` | `.venv\Scripts\python.exe --version` fails |
+| Node / npm | 26.13.1 / 11.20.0 | `--version` |
+| Git | 2.45.2.windows.1 | `--version` |
+| `sqlite3` CLI | Not installed | Phase 3 must use Python `sqlite3` read-only URI |
+| GUI runtime | PySide6 6.12.0 present in `venv_skyfall`; no visual QA performed | `pip list` |
+
+### 10.3 Git and working-tree status (2026-11-20, preserve)
+
+- Branch `V1.0.1`; HEAD `730e68a` (17 commits). HEAD advanced during a prior session (`1241266` → `730e68a`); not by this Orchestrator.
+- Tracked changes: **22 files, 566 insertions, 129 deletions** (`git diff --stat`). Includes 9 `.opencode/agents/*.md`, `opencode.json`, `.gitignore`, `DYNAMIC-MODEL-ROUTING.md`, `app/desktop/main_window.py`, `memory/conversation_store.py`, `skyfall_cloud/{command_runner,identity_service}.py`, `skyfall_workspace/{analyzer,manager}.py`, and 4 `audits/*.md`.
+- Untracked: `.opencode/agents/{intake,visual-analyst}.md`, 5 `.opencode/backups/Agent-Setup-20261120-*`, `RECONSTRUCTION_V092_TABLES.md`, root `V1.0.1-REQUIREMENTS-TRACEABILITY.md`, `V1.0.1-STRUCTURAL-DEFECT-DISPOSITION.md`, `analyze_db.py`, 9 `audits/V1.0.1-*.md`, `scripts/run_tests.{ps1,py}`, `setup-skyfall-opencode.{ps1,bak.ps1}`.
+- No stash entries. No reset/discard performed. All uncommitted user work preserved.
+
+### 10.4 Agent availability (verified 2026-11-20)
+
+- 11 configured agents: `orchestrator` (primary), `architect`, `debugger`, `developer`, `explorer`, `intake`, `researcher`, `reviewer`, `security-auditor`, `tester`, `visual-analyst`.
+- **All configured models are currently available** (`opencode/*`: longcat-2.5-free, beam-free, nemotron-3.5-super-vl-free, big-pickle, flint-40b-free, iceman-free, nemotron-3.5-lightning-free). The 2026-11-19 claim that the `tester` model was missing is **stale**.
+- `developer` **is** a registered subagent type in this runtime (the 2026-11-19 Phase 2 note saying it was not is stale).
+- Directive-named roles **not** available: Memory Specialist, Database Specialist, UI Specialist. Mapping: memory/database read-only audit → `general`/`explorer`; memory/database architecture → `architect`; UI implementation → `developer`; visual UI → `visual-analyst`.
+- No MCP servers/resources configured (`tools.opencode.list_mcp_resources()` → empty).
+
+### 10.5 Test framework and commands (verified)
+
+- Intended command: `venv_skyfall\Scripts\python.exe -m pytest tests/ -q` (repo root).
+- Runners: `scripts/run_tests.py`, `scripts/run_tests.ps1` (both invoke `venv_skyfall`).
+- `test.ps1` is **not** a test runner (agent-model switcher). Confirmed by reading its `.SYNOPSIS`.
+- `tests/`: 13 `unit/test_*.py` files; `integration/` and `security/` contain only `__init__.py`. No `pytest.ini`/`pyproject.toml`/`conftest.py`.
+
+### 10.6 Generated / runtime / excluded data (read-only)
+
+| Location | State |
+|---|---|
+| `Data_Memory/` | `CHAT_HISTORY.md`, `CHAT_TRANSCRIPT.md`, `README.md`, `SKYFALL_COLLABORATION_MEMORY.md`, `skyfall_memory.sqlite3` |
+| `database/` | Empty |
+| `memory/` | `conversation_store.py`, `__init__.py` |
+| `logs/` | Empty |
+| `reports/` | `Azure/`, `PowerPlatform/`, `General/`, `Dynamics365/` subdirs with `.xlsx` |
+| Live app data | `%LOCALAPPDATA%\SKYFALL\data\` **not present** at refresh time |
+| `.gitignore` | `.venv*/`, `venv_*/`, `__pycache__/`, `*.py[cod]`, `.env*`, `database/*.db`, `database/*.sqlite*`, `logs/*`, `reports/*` |
+
+### 10.7 Baseline behavior established (read-only)
+
+| Check | Result |
+|---|---|
+| `configuration/capabilities.json` | `server.version = 0.9.2`; **20 capabilities** |
+| `main.py` / `VERSION.txt` | version string `0.9.2` |
+| AST parse of 6 core files | PASS (6/6) |
+| Full test suite | PENDING — Tester agent |
+
+### 10.8 Refreshed risk register
+
+| ID | Risk | Severity | Status |
+|---|---|---|---|
+| R-01 | Spec content changed to the orchestration directive; scope/version interpretation open | High | Re-evaluate in Phase 4 |
+| R-02 | `.venv` broken; test runtime now `venv_skyfall` | Medium | Resolved for tests; `.venv` still must not be modified |
+| R-03 | 22 tracked + untracked uncommitted changes | Medium | Preserve verbatim |
+| R-04 | Prior audit claims (e.g., orphan DB, memory changes) unverified | Medium | Verify in Phases 1/3 |
+| R-05 | No `sqlite3` CLI | Low | Use Python read-only URI |
+| R-06 | `tester` model availability | — | **Closed** — model available |
+| R-07 | `test.ps1` misnamed | Low | Use `scripts/run_tests.*` |
+| R-08 | GUI not visually exercised | Medium | State limits in Phase 9/11 |
+| R-09 | Gitignored runtime data | Low | Preserve |
+| R-10 | Provider free-tier quota can terminate subagents mid-phase | Medium | Retry on an available model; Orchestrator can complete bounded read-only work directly |
+| R-11 | Prior audit `audits/V1.0.1-BASELINE-VERIFICATION.md:79` contains a leaked generation artifact (`<\|end\|><\|start\|>write to=assistant...`) | Low | Preserve the file; flag for correction in a later documentation phase. Do not propagate the artifact. |
+
+### 10.9 Phase 0 refresh exit assessment
+
+Environment, Git boundaries, agent availability, test commands, runtime data and refreshed risks are understood. No application source, database, or existing report content was modified (this section was appended; original text preserved). **Ready to request approval for Phase 1.**

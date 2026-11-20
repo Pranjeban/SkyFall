@@ -1,0 +1,37 @@
+{
+    "$schema":  "https://opencode.ai/config.json",
+    "default_agent":  "intake",
+    "subagent_depth":  2,
+    "agents":  {
+                   "orchestrator":  {
+                                        "mode":  "primary"
+                                    },
+                   "explorer":  {
+                                    "mode":  "subagent"
+                                },
+                   "visual-analyst":  {
+                                          "mode":  "subagent"
+                                      },
+                   "researcher":  {
+                                      "mode":  "subagent"
+                                  },
+                   "developer":  {
+                                     "mode":  "subagent"
+                                 },
+                   "debugger":  {
+                                    "mode":  "subagent"
+                                },
+                   "tester":  {
+                                  "mode":  "subagent"
+                              },
+                   "reviewer":  {
+                                    "mode":  "subagent"
+                                },
+                   "architect":  {
+                                     "mode":  "subagent"
+                                 },
+                   "security-auditor":  {
+                                            "mode":  "subagent"
+                                        }
+               }
+}

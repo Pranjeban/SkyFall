@@ -769,9 +769,9 @@ class MainWindow(QMainWindow):
         self.new_chat_button.setObjectName("primaryButton")
         self.new_chat_button.clicked.connect(self._create_new_conversation)
         actions.addWidget(self.new_chat_button, 1)
-        self.delete_chat_button = QPushButton("???")
+        self.delete_chat_button = QPushButton("Delete")
         self.delete_chat_button.setObjectName("secondaryButton")
-        self.delete_chat_button.setFixedWidth(38)
+        self.delete_chat_button.setFixedWidth(72)
         self.delete_chat_button.setToolTip("Conversation actions")
         menu = QMenu(self.delete_chat_button)
         menu.addAction("Delete selected conversation", self._delete_selected_conversation)
@@ -2987,14 +2987,14 @@ class MainWindow(QMainWindow):
         self._set_status_value("AI RUNTIME", "Connected")
         self._set_status_value("SKYFALL AI runtime", "Connected", "good")
         self._set_status_value("AI provider", "GitHub Copilot connected", "good")
-        self._set_status_value("MCP Tools", "19 tools · read-only + sign-in", "good")
+        self._set_status_value("MCP Tools", "20 tools · read-only + sign-in", "good")
         self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure + Power Automate inventory", "good")
         self.top_state.setText("●  COPILOT + MCP CONNECTED")
         self.top_state.setObjectName("statusGood")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
         self.chat_subtitle.setText(
-            "Connected to GitHub Copilot and SKYFALL's local MCP server. Nineteen tools are registered for "
+            "Connected to GitHub Copilot and SKYFALL's local MCP server. Twenty tools are registered for "
             "core status, approved workspace metadata, Azure account/subscription discovery, Power Platform "
             "profile/environment discovery, Azure Function App and Power Automate flow inventory, and explicitly requested Microsoft sign-in. Resource changes and "
             "script execution are not enabled."

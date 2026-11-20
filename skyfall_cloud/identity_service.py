@@ -71,7 +71,7 @@ class IdentityService:
         if self.powerplatform_store is None:
             return []
         try:
-            accounts = self.powerplatform_store.list_accounts() if hasattr(self.powerplatform_store, "list_accounts") else []
+            accounts = self.powerplatform_store.list_profiles() if hasattr(self.powerplatform_store, "list_profiles") else []
         except Exception as exc:  # pragma: no cover - defensive
             return [IdentityHealth(provider="powerplatform", profile_id="all", profile_name="all", authenticated=False, detail=str(exc))]
         results: list[IdentityHealth] = []

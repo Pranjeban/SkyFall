@@ -54,6 +54,27 @@ EXCLUDED_SUFFIXES = {
     ".sqlite", ".db", ".cer", ".crt", ".der",
 }
 
+import math as _math
+
+_SAAS_KEY_PREFIXES = (
+    "sk-", "pk-", "rk-", "ak_", "xox", "ghp_", "gho_", "ghu_", "ghs_", "ghr_",
+    "github_pat_", "AIza", "AKIA", "ASIA", "ya29.", "ya29_", "glpat-", "npm_",
+    "dckr_pat_", "hf_", "r8_", "tskey-", "whsec_", "sk_live_", "pk_live_",
+)
+
+def _shannon_entropy(value: str) -> float:
+    if not value:
+        return 0.0
+    counts = {}
+    for ch in value:
+        counts[ch] = counts.get(ch, 0) + 1
+    length = len(value)
+    entropy = 0.0
+    for count in counts.values():
+        p = count / length
+        entropy -= p * _math.log2(p)
+    return entropy
+
 _SECRET_PATTERNS = [
     re.compile(r"-----BEGIN (?:(?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY|ENCRYPTED PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----", re.I),
     # Common assignments in PowerShell, Python, JSON, YAML, TOML and INI.
@@ -82,7 +103,30 @@ _SECRET_PATTERNS = [
 
 
 def detect_sensitive_content(text: str) -> bool:
-    return any(pattern.search(text) for pattern in _SECRET_PATTERNS)
+    if any(pattern.search(text) for pattern in _SECRET_PATTERNS):
+        return True
+    # Common SaaS key prefixes.
+    for prefix in _SAAS_KEY_PREFIXES:
+        if prefix in text:
+            # ensure there is enough trailing material to be a key
+            idx = text.find(prefix)
+            tail = text[idx:idx + 40]
+            if len(tail) >= 20:
+                return True
+    # High-entropy heuristic on base64/hex tokens of sufficient length.
+    for token in re.findall(r"[A-Za-z0-9+/=_-]{24,}", text):
+        # only consider tokens that look like base64/hex-ish (no spaces)
+        if len(token) < 24:
+            continue
+        # require a mix of char classes to avoid prose
+        has_lower = any(c.islower() for c in token)
+        has_upper = any(c.isupper() for c in token)
+        has_digit = any(c.isdigit() for c in token)
+        if not (has_lower and (has_upper or has_digit)):
+            continue
+        if _shannon_entropy(token) >= 3.5:
+            return True
+    return False
 
 
 def _unique(values: list[str], limit: int = 40) -> list[str]:

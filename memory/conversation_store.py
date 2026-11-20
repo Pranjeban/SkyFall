@@ -348,10 +348,12 @@ class ConversationStore:
             raise KeyError(f"Conversation not found: {conversation_id}")
         messages = self.get_messages(conversation_id)
         lines = [f"# {conversation.title}", "", f"- ID: `{conversation.id}`",
+                 f"- Copilot Session ID: `{conversation.copilot_session_id}`",
+                 f"- SDK Session Initialized: {conversation.sdk_session_initialized}",
                  f"- Created: {conversation.created_at}", f"- Updated: {conversation.updated_at}",
                  f"- Messages: {conversation.message_count}", "", "---", ""]
         for message in messages:
-            lines.append(f"## {message.role.capitalize()} - {message.created_at}")
+            lines.append(f"## {message.role.capitalize()} - {message.created_at} (status: {message.status})")
             lines.append("")
             lines.append(message.content)
             lines.append("")

@@ -8,6 +8,7 @@ import os
 import re
 import sqlite3
 import stat
+import threading
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -133,6 +134,7 @@ class WorkspaceManager:
             database_path = local_app_data / "SKYFALL" / "data" / "workspace_index.db"
         self.database_path = Path(database_path).expanduser().resolve()
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.RLock()
         self._initialize()
 
     @staticmethod
@@ -141,18 +143,19 @@ class WorkspaceManager:
 
     @contextmanager
     def _connection(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.database_path, timeout=20)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys=ON")
-        connection.execute("PRAGMA busy_timeout=20000")
-        try:
-            yield connection
-            connection.commit()
-        except Exception:
-            connection.rollback()
-            raise
-        finally:
-            connection.close()
+        with self._lock:
+            connection = sqlite3.connect(self.database_path, timeout=20)
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys=ON")
+            connection.execute("PRAGMA busy_timeout=20000")
+            try:
+                yield connection
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+            finally:
+                connection.close()
 
     def _initialize(self) -> None:
         with self._connection() as conn:

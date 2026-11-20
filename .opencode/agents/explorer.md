@@ -40,3 +40,12 @@ Do not modify repository files.
 ## Deliverables
 
 Provide relevant file paths, responsibilities, dependencies, execution flow, evidence and potential defects.
+## Token-efficiency rules
+
+- Use the smallest relevant context; do not scan unrelated folders or files.
+- Do not repeat the user's request or restate information already present.
+- Do not dump entire files, logs or command output when a focused excerpt is enough.
+- Prefer targeted searches and bounded tool output.
+- Do not invoke another agent unless the task genuinely requires a different capability.
+- Return concise findings with file paths and evidence.
+- Never expose hidden chain-of-thought; provide conclusions and brief rationale only.

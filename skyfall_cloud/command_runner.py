@@ -47,13 +47,16 @@ def redact_sensitive_text(value: str) -> str:
         text,
     )
     # JSON / key-value token fields.
+    _secret_keys = ("access_?token|refresh_?token|id_?token|client_?secret|password|secret|"
+                    "api_?key|connection_?string|subscription_?key|sharedaccesssignature|"
+                    "account_?key|function_?key|host_?key")
     text = re.sub(
-        r'(?i)("?(?:access_?token|refresh_?token|id_?token|client_?secret|password|secret)"?\s*[:=]\s*")([^"\r\n]+)(")',
+        rf'(?i)("?(?:{_secret_keys})"?\s*[:=]\s*")([^"\r\n]+)(")',
         r"\1[REDACTED]\3",
         text,
     )
     text = re.sub(
-        r"(?i)(\b(?:access_?token|refresh_?token|id_?token|client_?secret|password|secret)\b\s*[:=]\s*)([^\s,;]+)",
+        rf"(?i)(\b(?:{_secret_keys})\b\s*[:=]\s*)([^\s,;]+)",
         r"\1[REDACTED]",
         text,
     )
