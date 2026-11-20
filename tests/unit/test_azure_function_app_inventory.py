@@ -201,6 +201,194 @@ class AzureFunctionAppInventoryTests(unittest.TestCase):
             self.assertEqual(fake_client.requests[0]["headers"]["Authorization"], "Bearer unit-test-token")
             self.assertEqual(fake_client.requests[0]["body"]["subscriptions"], ["sub-001"])
 
+    def test_find_function_app_by_name_returns_subscription_and_text_details(self):
+        fake_client = FakeHttpClient([self._app_payload(), self._plans_payload()])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = AzureFunctionAppInventory(
+                profile_manager=FakeProfileManager(),
+                project_root=temp_dir,
+                token_provider=lambda _profile_id: "unit-test-token",
+                http_client_factory=lambda: fake_client,
+            )
+            result = service.find_function_apps_by_name(
+                name="fn-qa-orders",
+                profile_id="company-qa-12345678",
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["match_count"], 1)
+        self.assertFalse(result["truncated"])
+        self.assertIsNone(result["report"])
+        match = result["matches"][0]
+        self.assertEqual(match["name"], "fn-qa-orders")
+        self.assertEqual(match["subscription_id"], "sub-001")
+        self.assertEqual(match["subscription_name"], "QA Subscription")
+        self.assertEqual(match["resource_group"], "rg-qa")
+        self.assertEqual(match["runtime_stack"], "DOTNET-ISOLATED|8.0")
+        self.assertNotIn("records", result)
+        self.assertIn("visible through profile(s): Company QA", result["summary"])
+        self.assertNotIn("['Company QA']", result["summary"])
+        for token in (
+            "QA Subscription", "sub-001", "rg-qa", "centralindia",
+            "Running", "DOTNET-ISOLATED|8.0", "plan-qa", "EP1",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, result["summary"])
+        self.assertNotIn("unit-test-token", str(result))
+        self.assertFalse(result["cloud_resources_modified"])
+        self.assertFalse(result["secrets_returned"])
+        self.assertEqual(len(fake_client.requests), 2)
+
+    def test_find_function_app_exact_and_partial_match_modes(self):
+        payload = self._app_payload()
+        second = dict(payload["data"][0])
+        second.update({
+            "id": "/subscriptions/sub-001/resourceGroups/rg-qa/providers/Microsoft.Web/sites/fn-qa-orders-staging",
+            "name": "fn-qa-orders-staging",
+        })
+        payload["data"].append(second)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            exact_client = FakeHttpClient([payload, self._plans_payload()])
+            exact_service = AzureFunctionAppInventory(
+                profile_manager=FakeProfileManager(),
+                project_root=temp_dir,
+                token_provider=lambda _profile_id: "unit-test-token",
+                http_client_factory=lambda: exact_client,
+            )
+            exact = exact_service.find_function_apps_by_name(name="fn-qa-orders")
+
+            partial_client = FakeHttpClient([payload, self._plans_payload()])
+            partial_service = AzureFunctionAppInventory(
+                profile_manager=FakeProfileManager(),
+                project_root=temp_dir,
+                token_provider=lambda _profile_id: "unit-test-token",
+                http_client_factory=lambda: partial_client,
+            )
+            partial = partial_service.find_function_apps_by_name(name="orders", exact=False)
+
+        self.assertEqual(exact["match_count"], 1)
+        self.assertEqual(exact["matches"][0]["name"], "fn-qa-orders")
+        self.assertEqual(partial["match_count"], 2)
+        self.assertEqual(
+            [row["name"] for row in partial["matches"]],
+            ["fn-qa-orders", "fn-qa-orders-staging"],
+        )
+
+        limited_client = FakeHttpClient([payload, self._plans_payload()])
+        limited_service = AzureFunctionAppInventory(
+            profile_manager=FakeProfileManager(),
+            project_root=temp_dir,
+            token_provider=lambda _profile_id: "unit-test-token",
+            http_client_factory=lambda: limited_client,
+        )
+        limited = limited_service.find_function_apps_by_name(
+            name="orders", exact=False, max_results=1
+        )
+        self.assertTrue(limited["truncated"])
+        self.assertEqual(limited["match_count"], 1)
+        self.assertIn("Found 2 matches", limited["summary"])
+        self.assertIn("Showing the first 1 of 2 matches", limited["summary"])
+
+    def test_find_function_app_not_found_is_a_successful_query(self):
+        fake_client = FakeHttpClient([self._app_payload(), self._plans_payload()])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = AzureFunctionAppInventory(
+                profile_manager=FakeProfileManager(),
+                project_root=temp_dir,
+                token_provider=lambda _profile_id: "unit-test-token",
+                http_client_factory=lambda: fake_client,
+            )
+            result = service.find_function_apps_by_name(name="fn-does-not-exist")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "not_found")
+        self.assertEqual(result["match_count"], 0)
+        self.assertEqual(result["matches"], [])
+        self.assertIn("No Azure Function App matching", result["summary"])
+
+    def test_not_found_with_discovery_errors_is_marked_partial(self):
+        good = {
+            "profile_id": "good-profile",
+            "name": "Good Profile",
+            "config_dir": "C:/Temp/skyfall-test-profile",
+        }
+        bad = {
+            "profile_id": "bad-profile",
+            "name": "Bad Profile",
+            "config_dir": "C:/Temp/skyfall-test-profile",
+        }
+
+        class PartialStore:
+            def list_profiles(self):
+                return [good, bad]
+
+            def get_profile(self, profile_id):
+                return next(item for item in (good, bad) if item["profile_id"] == profile_id)
+
+        class PartialProfileManager:
+            store = PartialStore()
+
+            def get_auth_status(self, profile_id):
+                return {"authenticated": profile_id == "good-profile"}
+
+            def list_subscriptions(self, profile_id, refresh=False):
+                if profile_id != "good-profile":
+                    return {"success": False, "error": "Not authenticated", "subscriptions": []}
+                return {
+                    "success": True,
+                    "subscriptions": [{
+                        "subscription_id": "sub-001",
+                        "name": "QA Subscription",
+                        "tenant_id": "tenant-001",
+                        "state": "Enabled",
+                    }],
+                }
+
+        fake_client = FakeHttpClient([
+            {"data": [], "resultTruncated": "false"},
+            self._plans_payload(),
+        ])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service = AzureFunctionAppInventory(
+                profile_manager=PartialProfileManager(),
+                project_root=temp_dir,
+                token_provider=lambda _profile_id: "unit-test-token",
+                http_client_factory=lambda: fake_client,
+            )
+            result = service.find_function_apps_by_name(name="fn-maybe-elsewhere")
+
+        self.assertTrue(result["success"])
+        self.assertEqual(result["status"], "not_found_partial")
+        self.assertEqual(result["match_count"], 0)
+        self.assertEqual(len(result["errors"]), 1)
+        self.assertIn("WARNING", result["summary"])
+        self.assertIn("error(s)", result["summary"])
+        self.assertIn("may still exist", result["summary"])
+
+    def test_find_function_app_rejects_invalid_requests_before_network_access(self):
+        service = AzureFunctionAppInventory(
+            token_provider=lambda _profile_id: (_ for _ in ()).throw(AssertionError("token provider must not run")),
+            http_client_factory=lambda: (_ for _ in ()).throw(AssertionError("HTTP client must not be created")),
+        )
+        with self.assertRaises(ValueError):
+            service.find_function_apps_by_name(name="   ")
+        with self.assertRaises(ValueError):
+            service.find_function_apps_by_name(name="fn-qa-orders", max_results=0)
+
+    def test_lookup_test_mode_blocks_before_token_or_network_access(self):
+        service = AzureFunctionAppInventory(
+            token_provider=lambda _profile_id: (_ for _ in ()).throw(AssertionError("token provider must not run")),
+            http_client_factory=lambda: (_ for _ in ()).throw(AssertionError("HTTP client must not be created")),
+        )
+        with patch.dict(os.environ, {"SKYFALL_TEST_MODE": "1"}):
+            result = service.find_function_apps_by_name(name="fn-qa-orders")
+        self.assertFalse(result["success"])
+        self.assertEqual(result["status"], "blocked_test_mode")
+        self.assertEqual(result["matches"], [])
+        self.assertFalse(result["cloud_resources_modified"])
+
     def test_test_mode_blocks_before_token_or_network_access(self):
         service = AzureFunctionAppInventory(
             profile_manager=FakeProfileManager(),

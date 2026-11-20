@@ -495,6 +495,62 @@
       ]
     },
     {
+      "id": "azure_resources.find_function_app",
+      "name": "Find a Function App by name",
+      "tool_name": "find_azure_function_app",
+      "category": "azure_resources",
+      "description": "Locate an Azure Function App by exact or partial name and report its subscription, resource group and non-secret metadata as text.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Function App name, or a fragment when exact is false.",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Azure profile ID from list_azure_profiles, or 'all' for every registered authenticated profile.",
+            "default": "all"
+          },
+          "subscription_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional subscription ID allow-filter. Every ID must already be accessible in the selected profile(s)."
+          },
+          "exact": {
+            "type": "boolean",
+            "description": "Exact case-insensitive name match; set false for substring search.",
+            "default": true
+          },
+          "max_results": {
+            "type": "integer",
+            "description": "Maximum number of matches to return.",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "limitations": [
+        "Queries only enabled subscriptions visible to the selected authenticated Azure CLI profile(s).",
+        "Azure Resource Graph indexing may lag recent resource changes.",
+        "Exact matching is case-insensitive; partial matching requires exact=false.",
+        "App settings, connection strings, publishing profiles, host keys and function keys are never retrieved.",
+        "The operation does not create, update or delete Azure resources and writes no report file."
+      ]
+    },
+    {
       "id": "power_platform_resources.inventory_cloud_flows",
       "name": "Generate Power Automate flow inventory",
       "tool_name": "inventory_power_automate_flows",

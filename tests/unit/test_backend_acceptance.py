@@ -28,7 +28,7 @@ CAPABILITIES_JSON = REPO_ROOT / "configuration" / "capabilities.json"
 MCP_SERVER_PY = REPO_ROOT / "skyfall_mcp" / "server.py"
 COMMAND_RUNNER_PY = REPO_ROOT / "skyfall_cloud" / "command_runner.py"
 
-EXPECTED_CAPABILITY_COUNT = 33
+EXPECTED_CAPABILITY_COUNT = 34
 
 UNWIRED_CLOUD_SERVICE_MODULES = (
     "skyfall_cloud.identity_service",

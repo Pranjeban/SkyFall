@@ -47,8 +47,18 @@ class TestPhase9UIAcceptance(unittest.TestCase):
     # --- Prior fix SP-064: tool-count wording -----------------------------
 
     def test_tool_count_wording_present(self) -> None:
-        self.assertIn("33 tools", self.main_window)
-        self.assertIn("Thirty-three tools", self.main_window)
+        self.assertIn("34 tools", self.main_window)
+        self.assertIn("Thirty-four tools", self.main_window)
+
+    def test_function_app_name_lookup_wiring_present(self) -> None:
+        for token in (
+            "which subscription is fn-qa-orders in?",
+            "Find by name",
+            "Function App name, e.g. fn-qa-orders",
+            "azure_function_app_lookup",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, self.main_window)
 
     def test_no_stale_tool_count_wording(self) -> None:
         for source in self.desktop_sources:

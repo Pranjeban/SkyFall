@@ -14,7 +14,7 @@ class CapabilityRegistryTests(unittest.TestCase):
 
     def test_catalogue_contains_all_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 33)
+        self.assertEqual(len(capabilities), 34)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -37,6 +37,7 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "start_powerplatform_login",
                 "get_microsoft_auth_job_status",
                 "inventory_azure_function_apps",
+                "find_azure_function_app",
                 "inventory_power_automate_flows",
                 "get_unified_identity_health",
                 "discover_azure_footprint",
@@ -85,7 +86,7 @@ class CapabilityRegistryTests(unittest.TestCase):
         self.assertEqual(len(self.registry.list(category="core")), 3)
         self.assertEqual(len(self.registry.list(category="workspace")), 4)
         self.assertEqual(len(self.registry.list(category="azure")), 6)
-        self.assertEqual(len(self.registry.list(category="azure_resources")), 1)
+        self.assertEqual(len(self.registry.list(category="azure_resources")), 2)
         self.assertEqual(len(self.registry.list(category="power_platform")), 7)
         self.assertEqual(len(self.registry.list(category="power_platform_resources")), 1)
         for category, expected in (

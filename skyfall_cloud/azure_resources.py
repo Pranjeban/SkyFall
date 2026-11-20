@@ -340,11 +340,14 @@ class AzureFunctionAppInventory:
         profile_id: str = "all",
         subscription_ids: Iterable[str] | None = None,
         generate_excel: bool = True,
+        include_records: bool = False,
     ) -> dict[str, Any]:
         """Inventory Function Apps across selected authenticated profiles.
 
         `subscription_ids`, when supplied, is an allow-filter: every ID must
         already be visible in the selected authenticated Azure CLI profiles.
+        `include_records` adds the complete non-secret record set for targeted
+        lookups; default callers continue to receive only the small preview.
         """
         if os.environ.get("SKYFALL_TEST_MODE") == "1":
             return {
@@ -602,7 +605,7 @@ class AzureFunctionAppInventory:
             )
 
         status = "partial" if errors else "success"
-        return {
+        result: dict[str, Any] = {
             "success": True,
             "status": status,
             "operation": "azure_function_app_inventory",
@@ -641,6 +644,171 @@ class AzureFunctionAppInventory:
                 "Azure Resource Graph can lag recent changes. App settings, connection strings, "
                 "publishing profiles, host keys and function keys are intentionally excluded."
             ),
+        }
+        if include_records:
+            result["records"] = function_apps
+        return result
+
+    @staticmethod
+    def _format_function_app_match(record: Mapping[str, Any]) -> str:
+        subscription = str(record.get("subscription_name") or "unknown subscription")
+        subscription_id = str(record.get("subscription_id") or "unknown ID")
+        resource_group = str(record.get("resource_group") or "unknown resource group")
+        region = str(record.get("region") or "unknown region")
+        state = str(record.get("state") or "state not reported")
+        runtime = str(record.get("runtime_stack") or "")
+        plan_name = str(record.get("hosting_plan_name") or "")
+        plan_sku = str(record.get("hosting_plan_sku") or "")
+        plan_tier = str(record.get("hosting_plan_tier") or "")
+        profile_value = record.get("profiles") or record.get("profile") or ""
+        if isinstance(profile_value, (list, tuple, set)):
+            profiles = "; ".join(str(item) for item in profile_value)
+        else:
+            profiles = str(profile_value)
+        detail = (
+            f"- '{record.get('name', '')}' is in subscription '{subscription}' "
+            f"(ID: {subscription_id}), resource group '{resource_group}', region '{region}', "
+            f"state '{state}'."
+        )
+        extras: list[str] = []
+        if runtime:
+            extras.append(f"runtime {runtime}")
+        if plan_name:
+            plan_text = f"hosting plan '{plan_name}'"
+            if plan_sku or plan_tier:
+                plan_text += f" ({'/'.join(part for part in (plan_sku, plan_tier) if part)})"
+            extras.append(plan_text)
+        if profiles:
+            extras.append(f"visible through profile(s): {profiles}")
+        if extras:
+            detail += " " + "; ".join(extras) + "."
+        return detail
+
+    def find_function_apps_by_name(
+        self,
+        *,
+        name: str,
+        profile_id: str = "all",
+        subscription_ids: Iterable[str] | None = None,
+        exact: bool = True,
+        max_results: int = 20,
+    ) -> dict[str, Any]:
+        """Locate a Function App by name and report its subscription and metadata.
+
+        This is a read-only lookup. It reuses the trusted inventory collection,
+        does not create an Excel report, and never reads secret-bearing app
+        configuration. Exact matching is case-insensitive by default; set
+        `exact=False` for a substring search when the user only knows part of
+        the name.
+        """
+        query = str(name or "").strip()
+        if not query or len(query) > 200 or any(ord(char) < 32 for char in query):
+            raise ValueError("Function App name must be 1-200 visible characters.")
+        try:
+            limit = int(max_results)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("max_results must be an integer.") from exc
+        if not 1 <= limit <= 100:
+            raise ValueError("max_results must be between 1 and 100.")
+
+        base = self.inventory(
+            profile_id=profile_id,
+            subscription_ids=subscription_ids,
+            generate_excel=False,
+            include_records=True,
+        )
+        # `records` is an internal transfer from inventory(); callers see only
+        # the filtered matches so a name lookup cannot dump the whole inventory.
+        public_base = {key: value for key, value in base.items() if key != "records"}
+        requested_ids = [str(value).strip() for value in (subscription_ids or []) if str(value).strip()]
+        request = {
+            "name": query,
+            "match_mode": "exact_case_insensitive" if exact else "contains_case_insensitive",
+            "profile_id": (profile_id or "all").strip() or "all",
+            "subscription_ids": requested_ids,
+            "max_results": limit,
+        }
+        common: dict[str, Any] = {
+            "operation": "azure_function_app_name_lookup",
+            "query": request,
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "sensitive_app_settings_read": False,
+        }
+        if not base.get("success"):
+            return {
+                **public_base,
+                **common,
+                "matches": [],
+                "match_count": 0,
+                "truncated": False,
+                "summary": (
+                    f"Could not search for Function App '{query}': "
+                    f"{base.get('error') or 'Function App discovery did not complete.'}"
+                ),
+            }
+
+        needle = query.casefold()
+        records = [row for row in base.get("records", []) if isinstance(row, dict)]
+        if exact:
+            matches = [
+                row for row in records
+                if str(row.get("name", "")).casefold() == needle
+            ]
+        else:
+            matches = [
+                row for row in records
+                if needle in str(row.get("name", "")).casefold()
+            ]
+        matches.sort(key=lambda row: (
+            str(row.get("subscription_name", "")).casefold(),
+            str(row.get("resource_group", "")).casefold(),
+            str(row.get("name", "")).casefold(),
+        ))
+        total_matches = len(matches)
+        truncated = total_matches > limit
+        matches = matches[:limit]
+        discovery_errors = list(base.get("errors") or [])
+
+        if not matches:
+            if discovery_errors:
+                status = "not_found_partial"
+                summary = (
+                    f"No Azure Function App matching '{query}' was found in the subscriptions "
+                    "and profiles that could be checked. WARNING: discovery reported "
+                    f"{len(discovery_errors)} error(s), so some subscriptions or profiles could "
+                    "not be checked and the app may still exist there."
+                )
+            else:
+                status = "not_found"
+                summary = (
+                    f"No Azure Function App matching '{query}' was found across the enabled "
+                    "subscriptions visible to the selected profile(s). Azure Resource Graph "
+                    "indexing can lag recent changes."
+                )
+        else:
+            status = "partial" if discovery_errors else "success"
+            label = "match" if total_matches == 1 else "matches"
+            lines = [f"Found {total_matches} {label} for '{query}'."]
+            lines.extend(self._format_function_app_match(row) for row in matches)
+            if truncated:
+                lines.append(
+                    f"Showing the first {limit} of {total_matches} matches; "
+                    "refine the name to narrow the search."
+                )
+            if discovery_errors:
+                lines.append(f"Discovery was partial: {len(discovery_errors)} error(s) were reported.")
+            summary = "\n".join(lines)
+
+        return {
+            **public_base,
+            **common,
+            "success": True,
+            "status": status,
+            "match_count": len(matches),
+            "matches": matches,
+            "truncated": truncated,
+            "summary": summary,
         }
 
     def _write_excel_report(

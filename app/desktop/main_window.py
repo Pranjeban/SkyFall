@@ -466,6 +466,9 @@ class MainWindow(QMainWindow):
         self.azure_inventory_report_label: QLabel | None = None
         self.azure_inventory_open_button: QPushButton | None = None
         self.azure_inventory_report_path: str | None = None
+        self.azure_lookup_input: QLineEdit | None = None
+        self.azure_lookup_button: QPushButton | None = None
+        self.azure_lookup_result_label: QLabel | None = None
         self.pp_status_label: QLabel | None = None
         self.pp_profile_combo: QComboBox | None = None
         self.pp_refresh_environments_button: QPushButton | None = None
@@ -1414,6 +1417,40 @@ class MainWindow(QMainWindow):
         intro.setWordWrap(True)
         layout.addWidget(intro)
 
+        lookup_panel = QFrame()
+        lookup_panel.setObjectName("panel")
+        lookup_layout = QVBoxLayout(lookup_panel)
+        lookup_layout.setContentsMargins(18, 16, 18, 16)
+        lookup_layout.setSpacing(10)
+        lookup_layout.addWidget(self._section_label("FIND A FUNCTION APP BY NAME"))
+
+        lookup_hint = QLabel(
+            "Ask in chat, for example: \"which subscription is fn-qa-orders in?\" "
+            "You can also use this search for the same plain-text answer without generating an Excel report."
+        )
+        lookup_hint.setObjectName("muted")
+        lookup_hint.setWordWrap(True)
+        lookup_layout.addWidget(lookup_hint)
+
+        lookup_row = QHBoxLayout()
+        self.azure_lookup_input = QLineEdit()
+        self.azure_lookup_input.setPlaceholderText("Function App name, e.g. fn-qa-orders")
+        self.azure_lookup_input.returnPressed.connect(self._start_function_app_lookup)
+        lookup_row.addWidget(self.azure_lookup_input, 1)
+        self.azure_lookup_button = QPushButton("Find by name")
+        self.azure_lookup_button.setObjectName("secondaryButton")
+        self.azure_lookup_button.clicked.connect(self._start_function_app_lookup)
+        lookup_row.addWidget(self.azure_lookup_button)
+        lookup_layout.addLayout(lookup_row)
+
+        self.azure_lookup_result_label = QLabel(
+            "No lookup run yet. Exact name matching is case-insensitive."
+        )
+        self.azure_lookup_result_label.setObjectName("muted")
+        self.azure_lookup_result_label.setWordWrap(True)
+        lookup_layout.addWidget(self.azure_lookup_result_label)
+        layout.addWidget(lookup_panel)
+
         panel = QFrame()
         panel.setObjectName("panel")
         panel_layout = QVBoxLayout(panel)
@@ -1457,7 +1494,8 @@ class MainWindow(QMainWindow):
 
         note = QLabel(
             "The detailed XLSX report is saved under SKYFALL\\reports\\Azure. "
-            "The preview shows up to 100 apps. Azure Resource Graph indexing can lag recent changes; "
+            "The preview shows up to 10 apps; use Find by name or ask in chat for a specific app's "
+            "subscription and details as text. Azure Resource Graph indexing can lag recent changes; "
             "SKYFALL reports partial discovery errors instead of silently claiming complete coverage."
         )
         note.setObjectName("muted")
@@ -1485,6 +1523,41 @@ class MainWindow(QMainWindow):
                 "Querying Azure Resource Graph across enabled subscriptions visible to the selected profile(s)..."
             )
         self._start_microsoft_worker("azure_function_apps", profile_id)
+
+    def _start_function_app_lookup(self) -> None:
+        name = str(self.azure_lookup_input.text().strip()) if self.azure_lookup_input else ""
+        if not name:
+            QMessageBox.information(
+                self,
+                "Function App name required",
+                "Enter the Function App name you want to locate, then select Find by name.",
+            )
+            return
+        if self._microsoft_worker is not None and self._microsoft_worker.isRunning():
+            QMessageBox.information(
+                self,
+                "Microsoft task in progress",
+                "Another Microsoft account or inventory task is running. Try again when it finishes.",
+            )
+            return
+        profile_id = str(
+            self.azure_profile_combo.currentData()
+            if self.azure_profile_combo is not None and self.azure_profile_combo.currentData()
+            else "all"
+        )
+        if self.azure_lookup_button:
+            self.azure_lookup_button.setEnabled(False)
+        if self.azure_lookup_input:
+            self.azure_lookup_input.setEnabled(False)
+        if self.azure_lookup_result_label:
+            self.azure_lookup_result_label.setText(
+                f"Searching Azure Resource Graph for Function App '{name}'..."
+            )
+        self._start_microsoft_worker(
+            "azure_function_app_lookup",
+            profile_id,
+            {"name": name, "exact": True},
+        )
 
     def _open_function_app_report(self) -> None:
         path = self.azure_inventory_report_path
@@ -1942,6 +2015,12 @@ class MainWindow(QMainWindow):
         elif action == "powerplatform_flow_inventory":
             if self.pp_flow_status_label:
                 self.pp_flow_status_label.setText("Retrieving cloud-flow metadata and preparing the Excel report...")
+        elif action == "azure_function_app_lookup":
+            if self.azure_lookup_result_label:
+                lookup_name = str((params or {}).get("name", ""))
+                self.azure_lookup_result_label.setText(
+                    f"Looking up Function App '{lookup_name}' by name..."
+                )
         elif self.pp_status_label:
             self.pp_status_label.setText("Refreshing saved Microsoft accounts and environment context...")
         worker.start()
@@ -2141,6 +2220,16 @@ class MainWindow(QMainWindow):
                     self.azure_inventory_status_label.setText(
                         f"Function App inventory failed: {data.get('error', 'Unknown Azure inventory error.')}"
                     )
+
+        elif action == "azure_function_app_lookup":
+            if self.azure_lookup_button:
+                self.azure_lookup_button.setEnabled(True)
+            if self.azure_lookup_input:
+                self.azure_lookup_input.setEnabled(True)
+            if self.azure_lookup_result_label:
+                self.azure_lookup_result_label.setText(
+                    str(data.get("summary") or "Function App lookup completed without a summary.")
+                )
 
         elif action == "powerplatform_flow_inventory":
             if self.pp_flow_inventory_button:
@@ -2376,6 +2465,13 @@ class MainWindow(QMainWindow):
                 self.azure_inventory_button.setEnabled(True)
             if self.azure_inventory_status_label:
                 self.azure_inventory_status_label.setText(f"Azure Function App inventory failed: {error}")
+        elif action == "azure_function_app_lookup":
+            if self.azure_lookup_button:
+                self.azure_lookup_button.setEnabled(True)
+            if self.azure_lookup_input:
+                self.azure_lookup_input.setEnabled(True)
+            if self.azure_lookup_result_label:
+                self.azure_lookup_result_label.setText(f"Function App lookup failed: {error}")
         elif action == "powerplatform_flow_inventory":
             if self.pp_flow_inventory_button:
                 self.pp_flow_inventory_button.setEnabled(True)
@@ -2987,25 +3083,26 @@ class MainWindow(QMainWindow):
         self._set_status_value("AI RUNTIME", "Connected")
         self._set_status_value("SKYFALL AI runtime", "Connected", "good")
         self._set_status_value("AI provider", "GitHub Copilot connected", "good")
-        self._set_status_value("MCP Tools", "33 tools · read-only + sign-in", "good")
-        self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure + Power Platform + unified cloud intelligence", "good")
+        self._set_status_value("MCP Tools", "34 tools · read-only + sign-in", "good")
+        self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure lookup + Power Platform + unified cloud intelligence", "good")
         self.top_state.setText("●  COPILOT + MCP CONNECTED")
         self.top_state.setObjectName("statusGood")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
         self.chat_subtitle.setText(
-            "Connected to GitHub Copilot and SKYFALL's local MCP server. Thirty-three tools are registered for "
+            "Connected to GitHub Copilot and SKYFALL's local MCP server. Thirty-four tools are registered for "
             "core status, approved workspace metadata, Azure account/subscription discovery, Power Platform "
-            "profile/environment discovery, Azure Function App and Power Automate flow inventory, unified cloud "
-            "intelligence, cross-platform correlation, monitoring, reporting and plan-only operations. "
-            "Explicitly requested Microsoft sign-in is available; resource changes and script execution are not enabled."
+            "profile/environment discovery, Azure Function App name lookup and inventory, Power Automate flow inventory, "
+            "unified cloud intelligence, cross-platform correlation, monitoring, reporting and plan-only operations. "
+            "Ask which subscription contains a Function App by name. Explicitly requested Microsoft sign-in is available; "
+            "resource changes and script execution are not enabled."
         )
         self.chat_input.setEnabled(True)
         self.chat_send_button.setEnabled(True)
         self.new_chat_button.setEnabled(True)
         self.history_list.setEnabled(True)
         self._refresh_conversation_list(select_id=self.current_conversation.id)
-        self.statusBar().showMessage("SKYFALL AI connected · 33 MCP tools available · general script execution disabled")
+        self.statusBar().showMessage("SKYFALL AI connected · 34 MCP tools available · general script execution disabled")
 
     def _on_ai_connection_failed(self, error: str) -> None:
         self._set_status_value("AI RUNTIME", "Connection failed")

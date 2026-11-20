@@ -27,6 +27,7 @@ from skyfall_mcp.tools.accounts import (
     start_powerplatform_login as _start_powerplatform_login,
 )
 from skyfall_mcp.tools.azure_resources import (
+    find_azure_function_app as _find_azure_function_app,
     inventory_azure_function_apps as _inventory_azure_function_apps,
 )
 from skyfall_mcp.tools.powerplatform_resources import (
@@ -61,7 +62,7 @@ mcp = MCPServer(
     instructions=(
     "SKYFALL v0.9.2 MCP server. Exposes read-only core status/capability tools, "
         "metadata-only workspace discovery, Azure CLI account/subscription discovery, "
-        "Power Platform delegated OAuth account/environment discovery, read-only Azure Function App and Dataverse cloud-flow inventory with local XLSX reporting, and explicit user-requested "
+        "Power Platform delegated OAuth account/environment discovery, read-only Azure Function App name lookup/inventory and Dataverse cloud-flow inventory with local XLSX reporting, and explicit user-requested "
     "interactive Microsoft sign-in jobs. Azure profiles are isolated by AZURE_CONFIG_DIR. "
     "Login tools may open a Microsoft sign-in page only when the user explicitly asks "
     "to connect or sign in. They do not create, update or delete cloud resources. "
@@ -194,6 +195,23 @@ def inventory_azure_function_apps(
     The XLSX output is written only beneath SKYFALL's local reports/Azure folder.
     """
     return _inventory_azure_function_apps(profile_id, subscription_ids, generate_excel)
+
+
+@mcp.tool(title="Find a Function App by name")
+def find_azure_function_app(
+    name: str,
+    profile_id: str = "all",
+    subscription_ids: list[str] | None = None,
+    exact: bool = True,
+    max_results: int = 20,
+) -> str:
+    """Find a Function App by name and return its subscription and non-secret details.
+
+    Use this when the user asks which subscription/resource group/region contains
+    a named Function App. Default profile_id to "all" and exact to true. It is
+    read-only, generates no report, and never returns app settings or secrets.
+    """
+    return _find_azure_function_app(name, profile_id, subscription_ids, exact, max_results)
 
 
 @mcp.tool(title="Check Microsoft sign-in progress")

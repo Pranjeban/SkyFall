@@ -44,7 +44,21 @@ EXPECTED_TOOL_NAMES = {
     "start_powerplatform_login",
     "get_microsoft_auth_job_status",
     "inventory_azure_function_apps",
+    "find_azure_function_app",
     "inventory_power_automate_flows",
+    "get_unified_identity_health",
+    "discover_azure_footprint",
+    "inventory_azure_resources",
+    "discover_powerplatform_environments",
+    "describe_powerplatform_environment",
+    "inspect_powerplatform_catalog",
+    "run_cloud_orchestration",
+    "correlate_cross_platform",
+    "cloud_health_report",
+    "build_executive_report",
+    "governance_summary",
+    "route_copilot_intent",
+    "build_operation_plan",
 }
 
 
@@ -217,9 +231,9 @@ async def run_server_test(local_app_data: Path) -> int:
         status_payload = json_payload(status, "get_skyfall_status")
         if status_payload.get("application") != "SKYFALL":
             raise RuntimeError("Status tool returned an unexpected application name.")
-        if status_payload.get("enabled_tools") != 33:
+        if status_payload.get("enabled_tools") != 34:
             raise RuntimeError(
-                "Status tool did not report thirty-three enabled tools; "
+                "Status tool did not report thirty-four enabled tools; "
                 f"got {status_payload.get('enabled_tools')!r}."
             )
 
@@ -413,6 +427,23 @@ async def run_server_test(local_app_data: Path) -> int:
         if azure_inventory_payload.get("cloud_resources_modified") is not False:
             raise RuntimeError("Azure inventory test-mode response did not confirm read-only behavior.")
         print("Azure Function App inventory isolated test-mode guard: PASS")
+
+        lookup_tool = next(tool for tool in discovered.tools if tool.name == "find_azure_function_app")
+        lookup_schema = get_tool_input_schema(lookup_tool)
+        required_lookup_fields = lookup_schema.get("required", [])
+        if "name" not in required_lookup_fields:
+            raise RuntimeError("find_azure_function_app must require the name argument.")
+        lookup_result = await invoke_tool(
+            client,
+            "find_azure_function_app",
+            {"name": "fn-smoke-test", "exact": True},
+        )
+        lookup_payload = json_payload(lookup_result, "find_azure_function_app")
+        if lookup_payload.get("status") != "blocked_test_mode":
+            raise RuntimeError("Azure Function App lookup was not blocked in isolated MCP test mode.")
+        if lookup_payload.get("cloud_resources_modified") is not False:
+            raise RuntimeError("Azure lookup test-mode response did not confirm read-only behavior.")
+        print("Azure Function App name lookup schema and test-mode guard: PASS")
 
         print("Checking Power Automate inventory schema and test-mode guard...", flush=True)
         flow_tool = next(tool for tool in discovered.tools if tool.name == "inventory_power_automate_flows")

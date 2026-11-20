@@ -77,6 +77,16 @@ class MicrosoftDiscoveryWorker(QThread):
                 )
                 if not payload.get("success"):
                     raise RuntimeError(payload.get("error") or "Azure Function App inventory failed.")
+            elif self.action == "azure_function_app_lookup":
+                # Preserve the lookup payload even when discovery fails. The
+                # service supplies an actionable summary (including partial
+                # discovery and test-mode warnings); turning that into a generic
+                # worker exception would hide it from the desktop UI path.
+                payload = AzureFunctionAppInventory().find_function_apps_by_name(
+                    name=str(self.params.get("name", "")),
+                    profile_id=self.profile_id or "all",
+                    exact=bool(self.params.get("exact", True)),
+                )
             elif self.action == "powerplatform_flow_inventory":
                 inventory = PowerPlatformFlowInventory()
                 payload = inventory.inventory(

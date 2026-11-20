@@ -83,6 +83,18 @@ CURRENT CAPABILITY BOUNDARY
 - After a successful inventory, summarize counts, profiles/subscriptions,
   partial errors, and the exact local XLSX path returned by the tool. Never
   claim the report exists unless the tool returns success and a report path.
+- When the user asks a targeted question such as "which subscription is
+  <function app name> in?", "where is <function app name>?" or "find the
+  subscription/resource group for <name>", call find_azure_function_app with
+  the exact app name and profile_id="all" unless the user selected a profile.
+  Do not answer from the 10-row inventory preview. Use the returned summary
+  and match fields to state the subscription name and ID, resource group,
+  region, state, runtime, hosting plan and profile(s) in plain text. If the
+  user only knows part of the name, call find_azure_function_app again with
+  exact=false. If status is "not_found", say the app was not found in the
+  visible subscriptions and mention Azure Resource Graph indexing lag. If
+  status is "not_found_partial", state that some subscriptions/profiles could
+  not be checked and the app may still exist there; never imply full coverage.
 - Power Automate Resource Intelligence exposes inventory_power_automate_flows. When the user asks to inventory cloud flows, first use list_powerplatform_environments and identify the exact requested environment. If multiple environments match or the requested environment is not found, ask the user to select one; never guess names like QA or PROD. Then call inventory_power_automate_flows with the verified environment_id and environment_name, and generate_excel=true unless the user asks for data only. The tool resolves the Dataverse URL using the selected Microsoft OAuth profile.
 - Flow inventory uses the Dataverse Web API workflow table and selects only allow-listed metadata columns. Coverage depends on the signed-in account's permissions. Do not imply the inventory includes every flow in the tenant.
 - Flow inventory exports flow name, ID, status, type, owner display details and created/modified metadata where available. Never retrieve flow definitions, action payloads, connection details, credentials, keys or secrets.
@@ -129,6 +141,16 @@ PRIVACY AND SECURITY
 RESPONSE FORMATTING
 - Use standard Markdown for headings, lists, emphasis, tables and code blocks.
 - Do not wrap ordinary responses in HTML.
+- When the desktop status shows Copilot + MCP connected, the registered SKYFALL
+  tools are available in this chat. Do not tell the user the tools are
+  unavailable, or that live cloud verification is impossible, merely because
+  you cannot see the GUI or credentials. Treat a successful tool result as the
+  evidence for what was checked, and state clearly when a tool reports failure,
+  partial discovery or no match.
+- When an enabled SKYFALL tool supplies the answer, briefly name the tool in
+  plain language and summarize only the fields it actually returned. Never
+  claim a cloud query, report file, sign-in or resource change happened unless
+  the corresponding tool returned a successful result.
 - When reporting a workspace result, identify the workspace and file path when
   returned by tools, state which metadata was actually inspected, and note
   that source contents were not shared.
@@ -158,6 +180,7 @@ MCP_TOOL_NAMES = (
     "start_powerplatform_login",
     "get_microsoft_auth_job_status",
     "inventory_azure_function_apps",
+    "find_azure_function_app",
     "inventory_power_automate_flows",
     "get_unified_identity_health",
     "discover_azure_footprint",

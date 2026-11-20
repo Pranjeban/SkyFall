@@ -44,3 +44,41 @@ def inventory_azure_function_apps(
             "secrets_returned": False,
         }
     return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def find_azure_function_app(
+    name: str,
+    profile_id: str = "all",
+    subscription_ids: list[str] | None = None,
+    exact: bool = True,
+    max_results: int = 20,
+) -> str:
+    """Find a Function App by name and report its subscription and non-secret details."""
+    payload: dict[str, Any]
+    try:
+        payload = AzureFunctionAppInventory().find_function_apps_by_name(
+            name=name,
+            profile_id=profile_id,
+            subscription_ids=subscription_ids,
+            exact=exact,
+            max_results=max_results,
+        )
+    except (ValueError, KeyError) as exc:
+        payload = {
+            "success": False,
+            "status": "invalid_request",
+            "error": str(exc),
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "summary": f"Invalid Function App lookup request: {exc}",
+        }
+    except Exception as exc:
+        payload = {
+            "success": False,
+            "status": "failed",
+            "error": f"{type(exc).__name__}: lookup failed before a safe result was produced.",
+            "cloud_resources_modified": False,
+            "secrets_returned": False,
+            "summary": "The Function App lookup could not be completed.",
+        }
+    return json.dumps(payload, ensure_ascii=False, indent=2)

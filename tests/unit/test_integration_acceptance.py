@@ -89,8 +89,9 @@ class TestPhase10IntegrationAcceptance(unittest.TestCase):
 
     # --- Verify MCP behavior (:865) --------------------------------------
 
-    def test_mcp_tool_registry_has_twenty_tools(self) -> None:
-        self.assertEqual(len(re.findall(r"@mcp\.tool", self.mcp_server)), 33)
+    def test_mcp_tool_registry_has_all_tools(self) -> None:
+        self.assertEqual(len(re.findall(r"@mcp\.tool", self.mcp_server)), 34)
+        self.assertIn("def find_azure_function_app(", self.mcp_server)
 
     def test_app_reaches_mcp_via_sdk_config(self) -> None:
         self.assertIn("-m", self.copilot)
