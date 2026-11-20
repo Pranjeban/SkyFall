@@ -1,0 +1,17 @@
+[flake8]
+max-line-length = 79
+extend-ignore = E203,W503
+exclude =
+    .git,
+    __pycache__,
+    .pytest_cache,
+    .mypy_cache,
+    .venv,
+    venv_skyfall,
+    backup_v05,
+    backup_v07,
+    backup_v070,
+    releases,
+    mcp_workspace_legacy,
+    build,
+    dist

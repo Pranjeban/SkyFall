@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import asyncio
 import os
-import threading
 import sys
+import threading
 from concurrent.futures import Future
 from pathlib import Path
 from typing import Any
@@ -53,13 +53,24 @@ CURRENT CAPABILITY BOUNDARY
 - Azure and Power Platform account/environment discovery is read-only.
   Azure tools aggregate across all registered SKYFALL Azure
   CLI profiles by default, or can target one profile by its profile ID. Each
-  additional Azure profile uses its own AZURE_CONFIG_DIR. Tenant IDs are derived
-  from each profile's account/subscription cache and are not a directory-wide
-  list of every possible guest tenant.
-- Power Platform profiles are saved locally by SKYFALL and use MSAL delegated OAuth, not PAC CLI. Tokens are stored in OS-protected MSAL Extensions caches per profile. Environment discovery uses the Power Platform REST API; cloud-flow inventory uses the Dataverse Web API.
-- Power Platform API use requires a Microsoft Entra desktop/public-client app registration configured in SKYFALL. If it is missing, explain the one-time setup and use configure_powerplatform_app only after the user provides the public Application (client) ID. Never ask for or store a client secret.
-- For a Power Platform sign-in, collect a profile name and optional tenant ID/domain, then call start_powerplatform_login only after the user clearly asks to connect/add the account. A Microsoft browser sign-in opens. After the user completes it, call get_microsoft_auth_job_status with the returned job_id.
-- Saved Microsoft profiles are isolated within SKYFALL. Selecting another profile changes only SKYFALL's local account context.
+  additional Azure profile uses its own AZURE_CONFIG_DIR. Tenant IDs are
+  derived from each profile's account/subscription cache and are not a
+  directory-wide list of every possible guest tenant.
+- Power Platform profiles are saved locally by SKYFALL and use MSAL delegated
+  OAuth, not PAC CLI. Tokens are stored in OS-protected MSAL Extensions caches
+  per profile. Environment discovery uses the Power Platform REST API;
+  cloud-flow inventory uses the Dataverse Web API.
+- Power Platform API use requires a Microsoft Entra desktop/public-client app
+  registration configured in SKYFALL. If it is missing, explain the one-time
+  setup and use configure_powerplatform_app only after the user provides the
+  public Application (client) ID. Never ask for or store a client secret.
+- For a Power Platform sign-in, collect a profile name and optional tenant
+  ID/domain, then call start_powerplatform_login only after the user clearly
+  asks to connect/add the account. A Microsoft browser sign-in opens. After
+  the user completes it, call get_microsoft_auth_job_status with the returned
+  job_id.
+- Saved Microsoft profiles are isolated within SKYFALL. Selecting another
+  profile changes only SKYFALL's local account context.
 - Never start an authentication flow merely because the user asks to list
   accounts, tenants or subscriptions. Require an explicit sign-in/connect
   request. A login tool starts authentication but does not modify cloud
@@ -71,7 +82,8 @@ CURRENT CAPABILITY BOUNDARY
 - Function App inventory includes resource identity, subscription/profile
   provenance, region, state, runtime metadata, hosting-plan SKU/tier, selected
   non-secret configuration, networking metadata, managed-identity type and
-  sanitized resource tags. Azure Resource Graph indexing can lag recent changes.
+  sanitized resource tags. Azure Resource Graph indexing can lag recent
+  changes.
 - Never retrieve or report Function App app settings, connection strings,
   publishing profiles, host keys, function keys or other secret-bearing data.
 - When the user asks to inventory or fetch Function Apps, call
@@ -95,9 +107,21 @@ CURRENT CAPABILITY BOUNDARY
   visible subscriptions and mention Azure Resource Graph indexing lag. If
   status is "not_found_partial", state that some subscriptions/profiles could
   not be checked and the app may still exist there; never imply full coverage.
-- Power Automate Resource Intelligence exposes inventory_power_automate_flows. When the user asks to inventory cloud flows, first use list_powerplatform_environments and identify the exact requested environment. If multiple environments match or the requested environment is not found, ask the user to select one; never guess names like QA or PROD. Then call inventory_power_automate_flows with the verified environment_id and environment_name, and generate_excel=true unless the user asks for data only. The tool resolves the Dataverse URL using the selected Microsoft OAuth profile.
-- Flow inventory uses the Dataverse Web API workflow table and selects only allow-listed metadata columns. Coverage depends on the signed-in account's permissions. Do not imply the inventory includes every flow in the tenant.
-- Flow inventory exports flow name, ID, status, type, owner display details and created/modified metadata where available. Never retrieve flow definitions, action payloads, connection details, credentials, keys or secrets.
+- Power Automate Resource Intelligence exposes inventory_power_automate_flows.
+  When the user asks to inventory cloud flows, first use
+  list_powerplatform_environments and identify the exact requested environment.
+  If multiple environments match or the requested environment is not found,
+  ask the user to select one; never guess names like QA or PROD. Then call
+  inventory_power_automate_flows with the verified environment_id and
+  environment_name, and generate_excel=true unless the user asks for data only.
+  The tool resolves the Dataverse URL using the selected Microsoft OAuth
+  profile.
+- Flow inventory uses the Dataverse Web API workflow table and selects only
+  allow-listed metadata columns. Coverage depends on the signed-in account's
+  permissions. Do not imply the inventory includes every flow in the tenant.
+- Flow inventory exports flow name, ID, status, type, owner display details and
+  created/modified metadata where available. Never retrieve flow definitions,
+  action payloads, connection details, credentials, keys or secrets.
 - Use human-readable operation labels and report names. For successful reports,
   present the descriptive filename and summary, not an opaque timestamp-heavy
   filename. Use the exact path returned by the tool when the user asks where it
@@ -111,14 +135,16 @@ CURRENT CAPABILITY BOUNDARY
 - If a requested operation is unavailable, explain the current limitation and
   give a practical plan without pretending that it was executed.
 - Unified identity keeps Azure and Power Platform MSAL sessions independent.
-  Identity health never returns access tokens, refresh tokens or cache contents.
+  Identity health never returns access tokens, refresh tokens or cache
+  contents.
 - Universal Copilot routing (`route_copilot_intent`) only maps a request to a
   read-only capability; it never executes the capability itself. Mutating
   requests require explicit human approval through the controlled-operations
   plan gate.
 - `build_operation_plan` only classifies and plans. `plan_execution` and
-  `get_execution_history` resolve, plan and dry-run simulate only: they do NOT
-  run PowerShell, Python, shell commands or cloud mutations, and they never start a process.
+  `get_execution_history` resolve, plan and dry-run simulate only: they
+  do NOT run PowerShell, Python, shell commands or cloud mutations, and they
+  never start a process.
   `governance_summary` reports in-memory audit counts. No tool in this release
   modifies cloud resources.
 - Cross-platform correlation, cloud orchestration, monitoring, reporting and
@@ -133,7 +159,8 @@ PRIVACY AND SECURITY
   filenames, summaries, metadata, subscription names or environment names.
 - Never request or expose access tokens, refresh tokens, client secrets or
   credential cache contents. Never ask the user to paste tokens in chat.
-- Power Platform profiles are SKYFALL-local and isolated; switching the selected profile changes only the account used inside this app.
+- Power Platform profiles are SKYFALL-local and isolated; switching the
+  selected profile changes only the account used inside this app.
 - Never request or infer access to a workspace that is not explicitly
   available through the registered workspace tools.
 - Never imply that workspace metadata consent authorizes source-code sharing.
@@ -224,6 +251,7 @@ class CopilotWorker(QThread):
         resume_existing: bool = False,
         parent=None,
     ) -> None:
+        """Create a worker for one resumable Copilot session."""
         super().__init__(parent)
         self.initial_session_id = session_id
         self.resume_initial_session = resume_existing
@@ -240,14 +268,21 @@ class CopilotWorker(QThread):
 
     @property
     def is_connected(self) -> bool:
-        return self._session is not None and self.isRunning() and not self._closing
+        """Return True when the worker owns a live Copilot session."""
+        return (
+            self._session is not None
+            and self.isRunning()
+            and not self._closing
+        )
 
     @property
     def is_busy(self) -> bool:
+        """Return True while a prompt or conversation switch is active."""
         with self._busy_lock:
             return self._busy or self._switching
 
     def run(self) -> None:
+        """Run the dedicated asyncio loop for this worker thread."""
         loop = asyncio.new_event_loop()
         self._loop = loop
         asyncio.set_event_loop(loop)
@@ -265,7 +300,7 @@ class CopilotWorker(QThread):
             if self._client is not None and not loop.is_closed():
                 try:
                     loop.run_until_complete(self._client.stop())
-                except Exception:
+                except Exception:  # noqa: BLE001 - shutdown must continue
                     pass
             if not loop.is_closed():
                 pending = asyncio.all_tasks(loop)
@@ -276,7 +311,7 @@ class CopilotWorker(QThread):
                         loop.run_until_complete(
                             asyncio.gather(*pending, return_exceptions=True)
                         )
-                    except Exception:
+                    except Exception:  # noqa: BLE001 - cancellation cleanup
                         pass
                 loop.close()
             self._session = None
@@ -285,9 +320,13 @@ class CopilotWorker(QThread):
             self.status_changed.emit("Disconnected")
 
     async def _connect(self) -> None:
+        """Start the SDK client and open the initial allow-listed session."""
         try:
             from copilot import CopilotClient
-            from copilot.rpc import PermissionDecisionApproveOnce, PermissionDecisionReject
+            from copilot.rpc import (
+                PermissionDecisionApproveOnce,
+                PermissionDecisionReject,
+            )
         except ImportError as exc:
             raise RuntimeError(
                 "The GitHub Copilot SDK is not installed in SKYFALL's active "
@@ -308,20 +347,26 @@ class CopilotWorker(QThread):
 
     @staticmethod
     def _extract_permission_tool_name(request: Any) -> str | None:
-        """Extract a tool name from SDK request objects without trusting other fields."""
+        """Extract a tool name without trusting unrelated request fields."""
         candidate_objects: list[Any] = [request]
         if hasattr(request, "model_dump"):
             try:
                 candidate_objects.append(request.model_dump(by_alias=True))
-            except Exception:
+            except Exception:  # noqa: BLE001 - fall back to other shapes
                 pass
         if hasattr(request, "dict"):
             try:
                 candidate_objects.append(request.dict(by_alias=True))
-            except Exception:
+            except Exception:  # noqa: BLE001 - fall back to other shapes
                 pass
 
-        keys = ("tool_name", "toolName", "name", "mcp_tool_name", "mcpToolName")
+        keys = (
+            "tool_name",
+            "toolName",
+            "name",
+            "mcp_tool_name",
+            "mcpToolName",
+        )
         for candidate in candidate_objects:
             if isinstance(candidate, dict):
                 for key in keys:
@@ -335,14 +380,18 @@ class CopilotWorker(QThread):
                         return value.strip()
         return None
 
-    def _permission_handler(self):
+    def _permission_handler(self) -> Any:
+        """Build a permission callback restricted to the MCP allow-list."""
         reject_type = self._permission_reject
         approve_once_type = self._permission_approve_once
-        allowed_names = set(MCP_TOOL_NAMES) | set(MCP_AVAILABLE_TOOL_IDS) | {
-            f"{MCP_SERVER_KEY}-{name}" for name in MCP_TOOL_NAMES
-        }
+        allowed_names = (
+            set(MCP_TOOL_NAMES)
+            | set(MCP_AVAILABLE_TOOL_IDS)
+            | {f"{MCP_SERVER_KEY}-{name}" for name in MCP_TOOL_NAMES}
+        )
 
         def control_tool_request(request: Any, invocation: Any) -> Any:
+            """Allow only registered read-only tools; reject the rest."""
             # Organization-managed approval requirements are never bypassed.
             managed_approval_required = (
                 request.get("managed_approval_required", False)
@@ -351,7 +400,10 @@ class CopilotWorker(QThread):
             )
             if managed_approval_required is True:
                 return reject_type(
-                    feedback="This request requires organization-managed approval. SKYFALL will not bypass that requirement."
+                    feedback=(
+                        "This request requires organization-managed "
+                        "approval. SKYFALL will not bypass that requirement."
+                    )
                 )
 
             tool_name = self._extract_permission_tool_name(request)
@@ -364,22 +416,26 @@ class CopilotWorker(QThread):
 
             return reject_type(
                 feedback=(
-                "SKYFALL permits read-only core/workspace/cloud discovery, unified-cloud "
-                "intelligence, plan-only operation review, and explicitly requested "
-                "interactive Microsoft sign-in tools. Resource-write, source-code, "
-                "arbitrary shell and script-execution tools are denied."
+                    "SKYFALL permits read-only core/workspace/cloud "
+                    "discovery, unified-cloud intelligence, plan-only "
+                    "operation review, and explicitly requested "
+                    "interactive Microsoft sign-in tools. Resource-write, "
+                    "source-code, arbitrary shell and script-execution "
+                    "tools are denied."
                 )
             )
 
         return control_tool_request
 
     def _project_root(self) -> Path:
+        """Return the repository root containing the MCP entry point."""
         return Path(__file__).resolve().parents[2]
 
     def _mcp_server_configuration(self) -> dict[str, Any]:
+        """Build the locked local MCP server configuration for the SDK."""
         project_root = self._project_root()
-        # Use the active virtual-environment interpreter so the child MCP process
-        # imports the exact MCP SDK installed for SKYFALL.
+        # Use the active interpreter so the child process imports the same
+        # MCP SDK version that SKYFALL installed.
         env = {
             "PYTHONPATH": str(project_root),
             "PYTHONUTF8": "1",
@@ -388,8 +444,16 @@ class CopilotWorker(QThread):
             "SKYFALL_ROOT": str(project_root),
         }
         for key in (
-            "SYSTEMROOT", "WINDIR", "TEMP", "TMP", "PATH",
-            "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "APPDATA", "LOCALAPPDATA",
+            "SYSTEMROOT",
+            "WINDIR",
+            "TEMP",
+            "TMP",
+            "PATH",
+            "USERPROFILE",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "APPDATA",
+            "LOCALAPPDATA",
             "AZURE_CONFIG_DIR",
         ):
             value = os.environ.get(key)
@@ -408,19 +472,20 @@ class CopilotWorker(QThread):
         }
 
     def _working_directory(self) -> str:
+        """Return the isolated local chat workspace directory."""
         local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home()))
         chat_workspace = local_app_data / "SKYFALL" / "copilot_chat_workspace"
         chat_workspace.mkdir(parents=True, exist_ok=True)
         return str(chat_workspace)
 
     async def _open_session(self, session_id: str, resume: bool) -> Any:
-        """Create or resume a Copilot conversation with the allow-listed core MCP server."""
+        """Create or resume a session with the allow-listed MCP server."""
         common = {
             "model": "auto",
             "working_directory": self._working_directory(),
-            # Explicit allow-list: read-only core/workspace/account discovery,
-            # cloud inventory, unified-cloud intelligence and plan-only review.
-            # No resource-write, shell, source-code-read or script-execution tools are exposed.
+            # Explicit allow-list: read-only discovery, cloud inventory,
+            # unified-cloud intelligence and plan-only review. Write, shell,
+            # source-read and script-execution tools are not exposed.
             "available_tools": list(MCP_AVAILABLE_TOOL_IDS),
             "mcp_servers": self._mcp_server_configuration(),
             "streaming": True,
@@ -443,13 +508,15 @@ class CopilotWorker(QThread):
         return session
 
     def _handle_event(self, event: Any) -> None:
+        """Forward assistant text deltas to the Qt signal."""
         event_type = getattr(event, "type", "")
         event_type = getattr(event_type, "value", event_type)
         event_type = str(event_type).lower()
         data = getattr(event, "data", None)
 
-        if event_type.endswith("assistant.message_delta") or event_type.endswith(
-            "assistant_message_delta"
+        if (
+            event_type.endswith("assistant.message_delta")
+            or event_type.endswith("assistant_message_delta")
         ):
             delta = getattr(data, "delta_content", None)
             if delta is None:
@@ -459,6 +526,7 @@ class CopilotWorker(QThread):
                 self.response_chunk.emit(delta)
 
     def send_prompt(self, prompt: str) -> bool:
+        """Queue a prompt on the worker loop when the worker is idle."""
         clean_prompt = prompt.strip()
         if not clean_prompt or not self.is_connected or self._loop is None:
             return False
@@ -473,12 +541,13 @@ class CopilotWorker(QThread):
                 self._send_prompt_async(clean_prompt), self._loop
             )
             return True
-        except Exception:
+        except Exception:  # noqa: BLE001 - release busy flag on failure
             with self._busy_lock:
                 self._busy = False
             return False
 
     async def _send_prompt_async(self, prompt: str) -> None:
+        """Send one prompt and emit safe completion or failure signals."""
         self._streamed_parts = []
         try:
             self.status_changed.emit("Thinking...")
@@ -494,14 +563,16 @@ class CopilotWorker(QThread):
                     self.response_chunk.emit(content)
                 elif not content:
                     raise RuntimeError(
-                        "Copilot completed the turn without returning assistant text."
+                        "Copilot completed the turn without returning "
+                        "assistant text."
                     )
 
             self.response_finished.emit()
             self.status_changed.emit("Connected")
         except asyncio.TimeoutError:
             self.response_failed.emit(
-                "Copilot did not finish within 180 seconds. Check network and service availability."
+                "Copilot did not finish within 180 seconds. Check network "
+                "and service availability."
             )
             self.status_changed.emit("Connected")
         except asyncio.CancelledError:
@@ -534,7 +605,10 @@ class CopilotWorker(QThread):
                 self._switching = False
             return False
 
-    async def _switch_conversation_async(self, session_id: str, resume: bool) -> None:
+    async def _switch_conversation_async(
+        self, session_id: str, resume: bool
+    ) -> None:
+        """Open a replacement session and cleanly detach the old one."""
         try:
             self.status_changed.emit("Opening conversation...")
             candidate = await self._open_session(session_id, resume=resume)
@@ -566,6 +640,7 @@ class CopilotWorker(QThread):
                 self._switching = False
 
     def shutdown(self, timeout_ms: int = 12000) -> None:
+        """Stop the client and join the worker thread within the timeout."""
         self._closing = True
         loop = self._loop
         if not self.isRunning() or loop is None or not loop.is_running():
@@ -576,10 +651,12 @@ class CopilotWorker(QThread):
         if active is not None and not active.done():
             active.cancel()
 
-        stop_future = asyncio.run_coroutine_threadsafe(self._stop_client(), loop)
+        stop_future = asyncio.run_coroutine_threadsafe(
+            self._stop_client(), loop
+        )
         try:
             stop_future.result(timeout=max(1, timeout_ms // 1000 - 1))
-        except Exception:
+        except Exception:  # noqa: BLE001 - best-effort shutdown
             pass
 
         try:
@@ -589,12 +666,13 @@ class CopilotWorker(QThread):
         self.wait(timeout_ms)
 
     async def _stop_client(self) -> None:
+        """Disconnect the session and stop the SDK client."""
         if self._session is not None:
             disconnect = getattr(self._session, "disconnect", None)
             if callable(disconnect):
                 try:
                     await disconnect()
-                except Exception:
+                except Exception:  # noqa: BLE001 - best-effort shutdown
                     pass
         if self._client is not None:
             await self._client.stop()

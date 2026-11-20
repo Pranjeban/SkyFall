@@ -1,0 +1,8 @@
+# Optional components that are not part of the default desktop runtime.
+#
+# backend/api.py guards these imports and raises a clear error when they are
+# missing. Keep the backend dormant until an explicit local-service slice is
+# approved.
+
+fastapi>=0.110,<1
+uvicorn>=0.27,<1

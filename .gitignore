@@ -9,3 +9,30 @@ database/*.db
 database/*.sqlite*
 logs/*
 reports/*
+
+# Test and tooling caches generated locally.
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Build and packaging artifacts.
+build/
+dist/
+*.egg-info/
+
+# Editor and operating-system noise.
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Temporary local output. Historical .bak files remain tracked deliberately.
+*.tmp
+*.temp
+*.log

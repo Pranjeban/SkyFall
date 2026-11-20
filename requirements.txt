@@ -1,16 +1,38 @@
-PySide6
-qasync
-pydantic
-pydantic-settings
-PyYAML
-httpx
+# SKYFALL runtime dependencies.
+#
+# Policy:
+#   - Direct runtime imports are listed here.
+#   - The Copilot SDK stays pinned because the tool-ID contract was verified
+#     against 1.0.34.
+#   - Other packages use conservative compatible ranges to reduce breakage.
+#   - Development and dormant-service dependencies live in separate files.
+#   - Never store credentials, tenant IDs or tokens in this file.
+
+# Desktop UI and async bridge.
+PySide6>=6.8,<7
+qasync>=0.27,<1
+
+# HTTP and Microsoft identity.
+httpx>=0.27,<1
 msal>=1.31,<2
 msal-extensions>=1.2,<2
-openpyxl
-platformdirs
-keyring
-structlog
 
-# GitHub Copilot SDK (pinned for repeatable integration)
+# Local storage, reporting and platform paths.
+openpyxl>=3.1,<4
+platformdirs>=4.0,<5
+
+# MCP/Copilot integration. Keep this pin aligned with the verified SDK.
 github-copilot-sdk==1.0.34
 mcp>=2.0,<3.0
+
+# Compatibility layer.
+#
+# These packages are retained from the historical v1.0.1 dependency set.
+# No first-party module imports them directly yet, but removing them silently
+# could break planned configuration, security or telemetry work. Review them
+# during the next explicit dependency-cleanup decision.
+pydantic>=2.7,<3
+pydantic-settings>=2.2,<3
+PyYAML>=6.0,<7
+keyring>=25,<26
+structlog>=24,<27

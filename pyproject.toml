@@ -1,0 +1,35 @@
+[tool.black]
+line-length = 79
+target-version = ["py311"]
+extend-exclude = '''
+/(
+  \.git
+  | \.pytest_cache
+  | \.mypy_cache
+  | \.venv
+  | venv_skyfall
+  | backup_v05
+  | backup_v07
+  | backup_v070
+  | releases
+  | mcp_workspace_legacy
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+files = [
+    "app",
+    "integrations",
+    "skyfall_cloud",
+    "skyfall_mcp",
+    "skyfall_workspace",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,14 @@
+# Development, test and static-analysis tools.
+#
+# Install with:
+#   python -m pip install -r requirements-dev.txt
+#
+# These tools are intentionally excluded from requirements.txt so the desktop
+# runtime install stays small.
+
+-r requirements.txt
+
+pytest>=8,<10
+flake8>=7,<8
+black>=24,<26
+mypy>=1.8,<2

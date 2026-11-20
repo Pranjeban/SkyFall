@@ -1,10 +1,10 @@
 """Controlled resource and workflow operations (v1.1 Module 9).
 
-A plan-and-approval gate for cloud operations. This module deliberately does NOT
-execute anything: it classifies requests, builds deterministic plans, issues
-short-lived HMAC approval tokens bound to the exact plan, and offers a dry-run
-simulation. Real execution requires a separately authorised runner and is
-intentionally out of scope for this read-only build.
+A plan-and-approval gate for cloud operations. This module deliberately does
+not execute anything: it classifies requests, builds deterministic plans,
+issues short-lived HMAC approval tokens bound to the exact plan, and offers a
+dry-run simulation. Real execution requires a separately authorised runner
+and is intentionally out of scope for this read-only build.
 
 No credentials, tokens or raw error bodies are ever placed in results.
 """
@@ -28,6 +28,8 @@ _PROVIDERS = frozenset({"azure", "powerplatform", "mcp", "workspace"})
 
 
 class OperationRisk(str, Enum):
+    """Informational risk class for a controlled operation."""
+
     READ_ONLY = "read_only"
     REVERSIBLE = "reversible"
     DESTRUCTIVE = "destructive"
@@ -39,6 +41,8 @@ class ControlledOperationsError(RuntimeError):
 
 @dataclass(frozen=True)
 class OperationRequest:
+    """Safe input describing one controlled operation."""
+
     operation: str
     provider: str
     target: str
@@ -46,30 +50,55 @@ class OperationRequest:
     parameters: dict[str, Any] = field(default_factory=dict)
 
 
-READ_ONLY_OPERATIONS = frozenset({
-    "azure.list_tenants",
-    "azure.list_subscriptions",
-    "azure.list_management_groups",
-    "azure.list_resources",
-    "azure.query_resources",
-    "azure.get_resource",
-    "powerplatform.list_environments",
-    "powerplatform.get_environment",
-    "powerplatform.list_flows",
-    "powerplatform.list_apps",
-    "powerplatform.list_solutions",
-    "powerplatform.list_connections",
-    "mcp.plan_capability",
-    "mcp.simulate_capability",
-    "workspace.plan_script",
-    "workspace.simulate_script",
-})
+READ_ONLY_OPERATIONS = frozenset(
+    {
+        "azure.list_tenants",
+        "azure.list_subscriptions",
+        "azure.list_management_groups",
+        "azure.list_resources",
+        "azure.query_resources",
+        "azure.get_resource",
+        "powerplatform.list_environments",
+        "powerplatform.get_environment",
+        "powerplatform.list_flows",
+        "powerplatform.list_apps",
+        "powerplatform.list_solutions",
+        "powerplatform.list_connections",
+        "mcp.plan_capability",
+        "mcp.simulate_capability",
+        "workspace.plan_script",
+        "workspace.simulate_script",
+    }
+)
 
 DESTRUCTIVE_VERBS = (
-    "delete", "remove", "destroy", "drop", "purge", "kill", "terminate",
-    "execute", "run", "modify", "update", "create", "write", "set",
-    "disable", "enable", "restart", "stop", "start", "deploy", "grant",
-    "revoke", "reset", "assign", "move", "copy", "publish",
+    "delete",
+    "remove",
+    "destroy",
+    "drop",
+    "purge",
+    "kill",
+    "terminate",
+    "execute",
+    "run",
+    "modify",
+    "update",
+    "create",
+    "write",
+    "set",
+    "disable",
+    "enable",
+    "restart",
+    "stop",
+    "start",
+    "deploy",
+    "grant",
+    "revoke",
+    "reset",
+    "assign",
+    "move",
+    "copy",
+    "publish",
 )
 
 
@@ -82,6 +111,7 @@ class ControlledOperationsService:
         approval_secret: bytes | None = None,
         now: Any = None,
     ) -> None:
+        """Create the gate with injectable approval secret and clock."""
         self._secret = approval_secret or secrets.token_bytes(32)
         self._now = now or time.time
         self._consumed_tokens: set[str] = set()
@@ -91,6 +121,7 @@ class ControlledOperationsService:
 
     @staticmethod
     def _validate(request: OperationRequest) -> OperationRequest:
+        """Return a trimmed copy or raise a safe validation error."""
         operation = str(request.operation or "").strip().lower()
         provider = str(request.provider or "").strip().lower()
         target = str(request.target or "").strip()
@@ -115,13 +146,12 @@ class ControlledOperationsService:
         )
 
     def classify(self, request: OperationRequest) -> OperationRisk:
+        """Classify a validated request without granting execution."""
         clean = self._validate(request)
         if clean.operation in READ_ONLY_OPERATIONS:
             return OperationRisk.READ_ONLY
-        tokens = set(clean.operation.split("."))
-        if any(verb in tokens for verb in DESTRUCTIVE_VERBS) or any(
-            verb in clean.operation for verb in DESTRUCTIVE_VERBS
-        ):
+        # Substring matching also covers exact operation-token matches.
+        if any(verb in clean.operation for verb in DESTRUCTIVE_VERBS):
             return OperationRisk.DESTRUCTIVE
         return OperationRisk.REVERSIBLE
 
@@ -129,6 +159,7 @@ class ControlledOperationsService:
 
     @staticmethod
     def _fingerprint(plan: dict[str, Any]) -> str:
+        """Hash the request portion of a plan for approval binding."""
         request = plan.get("request") if isinstance(plan, dict) else None
         if not isinstance(request, dict):
             raise ControlledOperationsError("Operation plan is malformed.")
@@ -139,15 +170,23 @@ class ControlledOperationsService:
             "profile_id": request.get("profile_id"),
             "parameters": request.get("parameters") or {},
         }
-        payload = json.dumps(canonical, sort_keys=True, separators=(",", ":"), default=str)
+        payload = json.dumps(
+            canonical, sort_keys=True, separators=(",", ":"), default=str
+        )
         return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
     def build_plan(self, request: OperationRequest) -> dict[str, Any]:
+        """Build a deterministic, non-executing plan for a request."""
         clean = self._validate(request)
         risk = self.classify(clean)
         fingerprint = self._fingerprint({"request": clean.__dict__})
         if risk is OperationRisk.READ_ONLY:
-            steps = ["validate_profile", "acquire_token", "perform_read", "redact_results"]
+            steps = [
+                "validate_profile",
+                "acquire_token",
+                "perform_read",
+                "redact_results",
+            ]
             permitted = True
         elif risk is OperationRisk.REVERSIBLE:
             steps = ["validate_profile", "require_approval", "simulate_only"]
@@ -173,24 +212,31 @@ class ControlledOperationsService:
         approver: str,
         ttl_seconds: int = DEFAULT_TTL_SECONDS,
     ) -> dict[str, Any]:
+        """Issue a single-use HMAC approval for an eligible plan."""
         if not isinstance(plan, dict):
             raise ControlledOperationsError("Operation plan is malformed.")
         if plan.get("risk") == OperationRisk.DESTRUCTIVE.value:
             raise ControlledOperationsError(
-                "Destructive operations cannot be approved in this read-only build."
+                "Destructive operations cannot be approved in this "
+                "read-only build."
             )
         if plan.get("risk") == OperationRisk.READ_ONLY.value:
             raise ControlledOperationsError(
-                "Read-only operations do not require approval; simulate them directly."
+                "Read-only operations do not require approval; "
+                "simulate them directly."
             )
         approver_clean = str(approver or "").strip()[:200]
         if not approver_clean:
-            raise ControlledOperationsError("An approver identity is required.")
+            raise ControlledOperationsError(
+                "An approver identity is required."
+            )
         ttl = int(ttl_seconds)
         if ttl <= 0 or ttl > 86400:
             raise ControlledOperationsError("Approval lifetime is invalid.")
         expiry = int(self._now()) + ttl
-        signature = self._sign(self._fingerprint(plan), approver_clean, expiry)
+        signature = self._sign(
+            self._fingerprint(plan), approver_clean, expiry
+        )
         return {
             **plan,
             "approved": True,
@@ -200,6 +246,7 @@ class ControlledOperationsService:
         }
 
     def _sign(self, fingerprint: str, approver: str, expiry: int) -> str:
+        """Sign an approval message with the service secret."""
         message = f"{fingerprint}|{approver}|{expiry}".encode("utf-8")
         return hmac.new(self._secret, message, hashlib.sha256).hexdigest()
 
@@ -210,6 +257,7 @@ class ControlledOperationsService:
         *,
         approver: str,
     ) -> bool:
+        """Consume a valid approval token for one eligible plan."""
         raw = str(token or "")
         approver_clean = str(approver or "").strip()[:200]
         if "." not in raw or not plan.get("approved"):
@@ -226,7 +274,9 @@ class ControlledOperationsService:
             return False
         if expiry <= int(self._now()):
             return False
-        expected = self._sign(self._fingerprint(plan), approver_clean, expiry)
+        expected = self._sign(
+            self._fingerprint(plan), approver_clean, expiry
+        )
         if not hmac.compare_digest(signature, expected):
             return False
         digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -243,14 +293,16 @@ class ControlledOperationsService:
         *,
         approver: str,
     ) -> dict[str, Any]:
+        """Return a dry-run result without executing any operation."""
         if plan.get("risk") == OperationRisk.DESTRUCTIVE.value:
             return {
                 "success": False,
                 "enabled": False,
                 "error": "Destructive operations are blocked by policy.",
             }
-        if plan.get("risk") != OperationRisk.READ_ONLY.value and not self.verify_approval(
-            plan, token, approver=approver
+        if (
+            plan.get("risk") != OperationRisk.READ_ONLY.value
+            and not self.verify_approval(plan, token, approver=approver)
         ):
             return {
                 "success": False,
@@ -264,13 +316,15 @@ class ControlledOperationsService:
             "plan_id": plan.get("plan_id"),
             "steps": [
                 {"step": step, "seq": index, "simulated": True}
-                for index, step in enumerate(plan.get("steps", []), start=1)
+                for index, step in enumerate(
+                    plan.get("steps", []), start=1
+                )
             ],
             "token_material_returned": False,
         }
 
     def execute(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        """Always refuses. Execution belongs to a separately approved runner."""
+        """Always refuse; execution needs a separately approved runner."""
         return {
             "success": False,
             "enabled": False,
@@ -282,6 +336,7 @@ class ControlledOperationsService:
 
     @staticmethod
     def describe_policy() -> dict[str, Any]:
+        """Return the public policy summary for the controlled gate."""
         return {
             "read_only_operations": sorted(READ_ONLY_OPERATIONS),
             "destructive_verbs": list(DESTRUCTIVE_VERBS),
