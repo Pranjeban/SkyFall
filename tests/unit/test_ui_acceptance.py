@@ -50,6 +50,20 @@ class TestPhase9UIAcceptance(unittest.TestCase):
         self.assertIn("36 tools", self.main_window)
         self.assertIn("Thirty-six tools", self.main_window)
 
+    def test_sidebar_update_panel_present(self) -> None:
+        for token in (
+            "PLATFORM UPDATE",
+            "Tool surface",
+            "36 connected",
+            "Execution Center",
+            "EXECUTION & REPORTING",
+            "Plan-only",
+            "Function lookup",
+            "Script runner",
+        ):
+            with self.subTest(token=token):
+                self.assertIn(token, self.main_window)
+
     def test_function_app_name_lookup_wiring_present(self) -> None:
         for token in (
             "which subscription is fn-qa-orders in?",

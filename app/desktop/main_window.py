@@ -409,7 +409,7 @@ class MainWindow(QMainWindow):
         ("Azure Resources", "azure_resources"),
         ("Power Platform", "power_platform"),
         ("Flow Inventory", "power_platform_resources"),
-        ("Orchestration", "executions"),
+        ("Execution Center", "executions"),
         ("Reports", "reports"),
         ("Settings", "settings"),
     ]
@@ -625,15 +625,24 @@ class MainWindow(QMainWindow):
         section.setObjectName("eyebrow")
         navigation_layout.addWidget(section)
 
-        workflow_keys = {"azure", "azure_resources", "power_platform", "power_platform_resources", "executions", "reports"}
-        workflow_heading_added = False
+        section_for_key = {
+            "azure": "CLOUD WORKFLOWS",
+            "azure_resources": "CLOUD WORKFLOWS",
+            "power_platform": "CLOUD WORKFLOWS",
+            "power_platform_resources": "CLOUD WORKFLOWS",
+            "executions": "EXECUTION & REPORTING",
+            "reports": "EXECUTION & REPORTING",
+            "settings": "SETTINGS",
+        }
+        added_sections: set[str] = set()
         for label, key in self.NAV_ITEMS:
-            if key in workflow_keys and not workflow_heading_added:
+            section_name = section_for_key.get(key)
+            if section_name and section_name not in added_sections:
                 navigation_layout.addSpacing(9)
-                workflow_heading = QLabel("CLOUD WORKFLOWS")
-                workflow_heading.setObjectName("eyebrow")
-                navigation_layout.addWidget(workflow_heading)
-                workflow_heading_added = True
+                section_heading = QLabel(section_name)
+                section_heading.setObjectName("eyebrow")
+                navigation_layout.addWidget(section_heading)
+                added_sections.add(section_name)
             button = QPushButton(f"   {label}")
             button.setObjectName("navButton")
             button.setCheckable(True)
@@ -650,6 +659,20 @@ class MainWindow(QMainWindow):
         floating_button.setMinimumHeight(36)
         floating_button.clicked.connect(self._show_floating)
         layout.addWidget(floating_button)
+
+        update_panel = QFrame()
+        update_panel.setObjectName("accountPanel")
+        update_panel_layout = QVBoxLayout(update_panel)
+        update_panel_layout.setContentsMargins(10, 9, 10, 9)
+        update_panel_layout.setSpacing(5)
+        update_title = QLabel("PLATFORM UPDATE")
+        update_title.setObjectName("eyebrow")
+        update_panel_layout.addWidget(update_title)
+        update_panel_layout.addWidget(self._status_row("Tool surface", "36 connected", "good"))
+        update_panel_layout.addWidget(self._status_row("Execution", "Plan-only", "good"))
+        update_panel_layout.addWidget(self._status_row("Function lookup", "Ready", "good"))
+        update_panel_layout.addWidget(self._status_row("Script runner", "Disabled", "pending"))
+        layout.addWidget(update_panel)
 
         account = QFrame()
         account.setObjectName("accountPanel")
