@@ -23,6 +23,26 @@ from skyfall_cloud.powerplatform_discovery import PowerPlatformDiscovery
 
 _BEARER = re.compile(r"Bearer\s+[A-Za-z0-9._\-+/=]{8,}", re.IGNORECASE)
 _LONG_SECRET = re.compile(r"\beyJ[A-Za-z0-9._\-]{12,}|\b[A-Za-z0-9]{40,}={0,2}\b")
+_KV_SECRET = re.compile(
+    r"(?i)\b(access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|password|passwd|secret|api[_-]?key|authorization|token)\b\s*[:=]\s*([^\s,;\"']+)"
+)
+_WINDOWS_PATH = re.compile(
+    r"(?:\b[A-Za-z]:\\[^\s\"'<>|]+|\b[A-Za-z]:/[^\s\"'<>|]+|\\\\[^\s\"'<>|]+)"
+)
+_UNIX_PATH = re.compile(r"(?<!\w)/(?:[^\s\"'<>|]+)")
+
+
+def redact_error_text(value: Any, *, limit: int = 300) -> str:
+    """Return a bounded, token-safe string for public error surfaces."""
+    if isinstance(value, BaseException):
+        return type(value).__name__
+    text = str(value or "")
+    text = _BEARER.sub("Bearer [REDACTED]", text)
+    text = _LONG_SECRET.sub("[REDACTED]", text)
+    text = _KV_SECRET.sub(lambda m: f"{m.group(1)}=[REDACTED]", text)
+    text = _WINDOWS_PATH.sub("[REDACTED_PATH]", text)
+    text = _UNIX_PATH.sub("[REDACTED_PATH]", text)
+    return text[: max(0, int(limit))]
 
 TASK_GRAPH: tuple[dict[str, Any], ...] = (
     {"id": "identity_health", "module": "Module 4", "provider": "both",
@@ -92,12 +112,8 @@ class CloudOrchestrationService:
 
     @staticmethod
     def _safe_error(value: Any) -> str:
-        if isinstance(value, BaseException):
-            return type(value).__name__
-        text = str(value or "")
-        text = _BEARER.sub("Bearer [REDACTED]", text)
-        text = _LONG_SECRET.sub("[REDACTED]", text)
-        return text[:300]
+        """Compatibility wrapper for historical callers."""
+        return redact_error_text(value, limit=300)
 
     def task_graph(self) -> list[dict[str, Any]]:
         return [dict(step) for step in TASK_GRAPH]

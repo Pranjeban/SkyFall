@@ -111,6 +111,38 @@ class CapabilityRegistry:
         except KeyError as exc:
             raise KeyError(f"Unknown SKYFALL capability: {clean_id}") from exc
 
+    def find_by_tool_name(self, tool_name: str) -> Capability | None:
+        """Return the enabled capability registered for an exact MCP tool name."""
+        clean_name = (tool_name or "").strip()
+        if not clean_name:
+            return None
+        for capability in self._capabilities.values():
+            if (
+                capability.tool_name == clean_name
+                and capability.status == "enabled"
+                and capability.execution_enabled
+            ):
+                return capability
+        return None
+
+    def find_by_operation(self, operation: str) -> Capability | None:
+        """Return the enabled capability matching an exact operation identifier.
+
+        Operation lookup accepts either an exact capability ID or an exact MCP
+        tool name. Disabled capabilities are never returned.
+        """
+        clean_operation = (operation or "").strip()
+        if not clean_operation:
+            return None
+        capability = self._capabilities.get(clean_operation)
+        if (
+            capability is not None
+            and capability.status == "enabled"
+            and capability.execution_enabled
+        ):
+            return capability
+        return self.find_by_tool_name(clean_operation)
+
     def is_tool_enabled(self, tool_name: str) -> bool:
         return any(
             c.tool_name == tool_name and c.status == "enabled" and c.execution_enabled

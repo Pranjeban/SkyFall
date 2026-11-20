@@ -978,6 +978,106 @@
         "Execution is never enabled by this tool.",
         "Destructive operations are blocked by policy."
       ]
+    },
+    {
+      "id": "execution.plan_execution",
+      "name": "Plan a capability execution",
+      "tool_name": "plan_execution",
+      "category": "execution",
+      "description": "Resolves an MCP capability or explicitly requested approved-workspace script metadata, then builds and dry-run simulates a plan without executing it.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "type": "string",
+            "description": "Operation or capability identifier to resolve."
+          },
+          "tool_name": {
+            "type": "string",
+            "description": "Exact MCP tool name to resolve."
+          },
+          "capability_id": {
+            "type": "string",
+            "description": "Exact capability ID to resolve."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Optional provider hint such as azure, powerplatform, mcp or workspace."
+          },
+          "target": {
+            "type": "string",
+            "description": "Target identifier used for planning metadata only."
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Optional profile identifier for planning context."
+          },
+          "workspace_id": {
+            "type": "string",
+            "description": "Optional approved workspace ID for explicit workspace fallback."
+          },
+          "file_id": {
+            "type": "string",
+            "description": "Optional indexed file ID from approved workspace metadata."
+          },
+          "query": {
+            "type": "string",
+            "description": "Optional metadata query for explicit workspace fallback."
+          },
+          "allow_workspace_fallback": {
+            "type": "boolean",
+            "description": "Allow workspace fallback only when explicitly requested and only via AI-metadata-safe APIs.",
+            "default": false
+          },
+          "requires_mutation": {
+            "type": "boolean",
+            "description": "Mark the request as mutating for planning; no mutation is executed.",
+            "default": false
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Plan-only and dry-run simulation only; no process is started.",
+        "Does not run PowerShell, Python, shell commands or cloud mutations.",
+        "Workspace fallback uses approved AI metadata only and never returns source content.",
+        "Outputs are redacted and bounded; no tokens, secrets, stdout/stderr, raw command lines or absolute paths are returned."
+      ]
+    },
+    {
+      "id": "execution.get_execution_history",
+      "name": "Get execution planning history",
+      "tool_name": "get_execution_history",
+      "category": "execution",
+      "description": "Returns bounded, redacted in-memory planning and dry-run simulation records.",
+      "risk": "read_only",
+      "status": "enabled",
+      "requires_approval": false,
+      "execution_enabled": true,
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "record_id": {
+            "type": "string",
+            "description": "Optional plan/request/record identifier to retrieve."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Maximum number of recent records to return, 1 to 50.",
+            "default": 20
+          }
+        },
+        "required": []
+      },
+      "limitations": [
+        "Plan-only history; no process is started and no execution occurs.",
+        "History is in-memory, bounded and redacted.",
+        "Outputs never include tokens, secrets, stdout/stderr, raw command lines, absolute paths or source content."
+      ]
     }
   ]
 }

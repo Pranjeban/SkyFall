@@ -933,6 +933,15 @@ class MainWindow(QMainWindow):
             "power_platform": "POWER PLATFORM",
             "power_platform_resources": "POWER PLATFORM RESOURCES",
             "authentication": "AUTHENTICATION",
+            "identity": "IDENTITY",
+            "orchestration": "ORCHESTRATION",
+            "cross_platform": "CROSS-PLATFORM",
+            "monitoring": "MONITORING",
+            "reporting": "REPORTING",
+            "governance": "GOVERNANCE",
+            "copilot": "COPILOT",
+            "operations": "OPERATIONS",
+            "execution": "EXECUTION",
         }
         for index, capability in enumerate(capabilities):
             card = QFrame()
@@ -3083,26 +3092,26 @@ class MainWindow(QMainWindow):
         self._set_status_value("AI RUNTIME", "Connected")
         self._set_status_value("SKYFALL AI runtime", "Connected", "good")
         self._set_status_value("AI provider", "GitHub Copilot connected", "good")
-        self._set_status_value("MCP Tools", "34 tools · read-only + sign-in", "good")
+        self._set_status_value("MCP Tools", "36 tools — read-only + sign-in", "good")
         self._set_status_value("MCP integration", "Core + workspace + Microsoft accounts + Azure lookup + Power Platform + unified cloud intelligence", "good")
         self.top_state.setText("●  COPILOT + MCP CONNECTED")
         self.top_state.setObjectName("statusGood")
         self.top_state.style().unpolish(self.top_state)
         self.top_state.style().polish(self.top_state)
         self.chat_subtitle.setText(
-            "Connected to GitHub Copilot and SKYFALL's local MCP server. Thirty-four tools are registered for "
+            "Connected to GitHub Copilot and SKYFALL's local MCP server. Thirty-six tools are registered for "
             "core status, approved workspace metadata, Azure account/subscription discovery, Power Platform "
             "profile/environment discovery, Azure Function App name lookup and inventory, Power Automate flow inventory, "
-            "unified cloud intelligence, cross-platform correlation, monitoring, reporting and plan-only operations. "
-            "Ask which subscription contains a Function App by name. Explicitly requested Microsoft sign-in is available; "
-            "resource changes and script execution are not enabled."
+            "unified cloud intelligence, cross-platform correlation, monitoring, reporting, plan-only operations, and "
+            "plan-only execution resolution/simulation history. Ask which subscription contains a Function App by name. "
+            "Explicitly requested Microsoft sign-in is available; resource changes and script execution are not enabled."
         )
         self.chat_input.setEnabled(True)
         self.chat_send_button.setEnabled(True)
         self.new_chat_button.setEnabled(True)
         self.history_list.setEnabled(True)
         self._refresh_conversation_list(select_id=self.current_conversation.id)
-        self.statusBar().showMessage("SKYFALL AI connected · 34 MCP tools available · general script execution disabled")
+        self.statusBar().showMessage("SKYFALL AI connected — 36 MCP tools available — general script execution disabled")
 
     def _on_ai_connection_failed(self, error: str) -> None:
         self._set_status_value("AI RUNTIME", "Connection failed")

@@ -116,8 +116,11 @@ CURRENT CAPABILITY BOUNDARY
   read-only capability; it never executes the capability itself. Mutating
   requests require explicit human approval through the controlled-operations
   plan gate.
-- `build_operation_plan` only classifies and plans. `governance_summary` reports
-  in-memory audit counts. No tool in this release modifies cloud resources.
+- `build_operation_plan` only classifies and plans. `plan_execution` and
+  `get_execution_history` resolve, plan and dry-run simulate only: they do NOT
+  run PowerShell, Python, shell commands or cloud mutations, and they never start a process.
+  `governance_summary` reports in-memory audit counts. No tool in this release
+  modifies cloud resources.
 - Cross-platform correlation, cloud orchestration, monitoring, reporting and
   catalog tools are read-only and secret-safe: they return metadata summaries,
   never credentials, flow definitions or connection secrets.
@@ -195,6 +198,8 @@ MCP_TOOL_NAMES = (
     "governance_summary",
     "route_copilot_intent",
     "build_operation_plan",
+    "plan_execution",
+    "get_execution_history",
 )
 MCP_AVAILABLE_TOOL_IDS = tuple(
     f"mcp:{MCP_SERVER_KEY}-{tool_name}" for tool_name in MCP_TOOL_NAMES

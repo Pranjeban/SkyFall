@@ -25,6 +25,8 @@ from skyfall_cloud.controlled_operations import ControlledOperationsService, Ope
 from skyfall_cloud.msal_identity import UnifiedIdentityAuthority
 from skyfall_cloud.powerplatform_catalog import PowerPlatformCatalog
 from skyfall_cloud.powerplatform_discovery import PowerPlatformDiscovery
+from skyfall_cloud.universal_execution import ExecutionRequest, UniversalExecutionEngine, redact_public_text
+from skyfall_workspace.manager import WorkspaceManager
 
 _SERVICES: dict[str, Any] = {}
 
@@ -110,6 +112,13 @@ def _operations() -> Any:
 
 def _copilot() -> Any:
     return _lazy("copilot", CopilotIntentRouter)
+
+
+def _engine() -> Any:
+    return _lazy(
+        "engine",
+        lambda: UniversalExecutionEngine(workspace_manager=WorkspaceManager()),
+    )
 
 
 def _render(payload: Any) -> str:
@@ -287,10 +296,103 @@ def build_operation_plan(operation: str, provider: str, target: str, profile_id:
         service = _operations()
         request = OperationRequest(operation, provider, target, profile_id or None)
         plan = service.build_plan(request)
+        safe_request = {
+            key: redact_public_text(value) if isinstance(value, str) else value
+            for key, value in dict(plan.get("request") or {}).items()
+        }
+        safe_plan = {
+            "plan_id": plan.get("plan_id"),
+            "request": safe_request,
+            "risk": plan.get("risk"),
+            "steps": list(plan.get("steps") or []),
+            "execution_permitted": bool(plan.get("execution_permitted")),
+            "approved": bool(plan.get("approved")),
+            "approval_token": None,
+            "token_material_returned": False,
+        }
         return _render({
-            "plan": plan,
+            "plan": safe_plan,
             "policy": service.describe_policy(),
             "token_material_returned": False,
         })
+    except Exception as exc:
+        return _failure(exc)
+
+
+def plan_execution(
+    operation: str = "",
+    tool_name: str = "",
+    capability_id: str = "",
+    provider: str = "",
+    target: str = "",
+    profile_id: str = "",
+    workspace_id: str = "",
+    file_id: str = "",
+    query: str = "",
+    allow_workspace_fallback: bool = False,
+    requires_mutation: bool = False,
+) -> str:
+    """Resolve and dry-run plan/simulate a capability request. Never starts processes."""
+    try:
+        engine = _engine()
+        request = ExecutionRequest(
+            operation=operation or "",
+            tool_name=tool_name or "",
+            capability_id=capability_id or "",
+            provider=provider or "",
+            target=target or "",
+            profile_id=profile_id or None,
+            workspace_id=workspace_id or None,
+            file_id=file_id or None,
+            query=query or None,
+            allow_workspace_fallback=bool(allow_workspace_fallback),
+            requires_mutation=bool(requires_mutation),
+        )
+        resolution, plan, record = engine.plan(request)
+        simulation = None
+        if plan.status.value == "planned" and not plan.mutable:
+            result, sim_record = engine.simulate(plan)
+            record = sim_record
+            simulation = result.to_dict()
+        payload = {
+            "success": resolution.resolved,
+            "plan_only": True,
+            "executed": False,
+            "process_started": False,
+            "resolution": resolution.to_dict(),
+            "plan": plan.to_dict(),
+            "simulation": simulation,
+            "record_id": record.record_id,
+            "message": redact_public_text(
+                "Resolved and planned in dry-run mode. No process was started."
+                if resolution.resolved
+                else "Request could not be resolved. No process was started."
+            ),
+        }
+        return _render(payload)
+    except Exception as exc:
+        return _failure(exc)
+
+
+def get_execution_history(record_id: str = "", limit: int = 20) -> str:
+    """Return bounded, redacted execution planning/simulation history. Never starts processes."""
+    try:
+        engine = _engine()
+        bounded_limit = max(1, min(int(limit or 20), 50))
+        if record_id:
+            record = engine.get_record(record_id)
+            records = [record] if record is not None else []
+        else:
+            records = engine.list_history(limit=bounded_limit)
+        payload = {
+            "success": True,
+            "plan_only": True,
+            "executed": False,
+            "process_started": False,
+            "count": len(records),
+            "records": [record.to_dict() for record in records],
+            "message": "Execution history is plan/simulation metadata only. No process was started.",
+        }
+        return _render(payload)
     except Exception as exc:
         return _failure(exc)

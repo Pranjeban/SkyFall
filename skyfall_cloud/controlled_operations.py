@@ -24,7 +24,7 @@ from typing import Any
 
 DEFAULT_TTL_SECONDS = 900
 _OPERATION_PATTERN = re.compile(r"^[a-z][a-z0-9_.]{1,79}$")
-_PROVIDERS = frozenset({"azure", "powerplatform"})
+_PROVIDERS = frozenset({"azure", "powerplatform", "mcp", "workspace"})
 
 
 class OperationRisk(str, Enum):
@@ -59,6 +59,10 @@ READ_ONLY_OPERATIONS = frozenset({
     "powerplatform.list_apps",
     "powerplatform.list_solutions",
     "powerplatform.list_connections",
+    "mcp.plan_capability",
+    "mcp.simulate_capability",
+    "workspace.plan_script",
+    "workspace.simulate_script",
 })
 
 DESTRUCTIVE_VERBS = (

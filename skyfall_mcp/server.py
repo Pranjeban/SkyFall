@@ -46,10 +46,12 @@ from skyfall_mcp.tools.unified_cloud import (
     describe_powerplatform_environment as _describe_powerplatform_environment,
     discover_azure_footprint as _discover_azure_footprint,
     discover_powerplatform_environments as _discover_powerplatform_environments,
+    get_execution_history as _get_execution_history,
     get_unified_identity_health as _get_unified_identity_health,
     governance_summary as _governance_summary,
     inspect_powerplatform_catalog as _inspect_powerplatform_catalog,
     inventory_azure_resources as _inventory_azure_resources,
+    plan_execution as _plan_execution,
     route_copilot_intent as _route_copilot_intent,
     run_cloud_orchestration as _run_cloud_orchestration,
 )
@@ -331,6 +333,42 @@ def build_operation_plan(
 ) -> str:
     """Build and policy-evaluate an operation plan; never executes it."""
     return _build_operation_plan(operation, provider, target, profile_id)
+
+
+@mcp.tool(title="Plan a capability execution")
+def plan_execution(
+    operation: str = "",
+    tool_name: str = "",
+    capability_id: str = "",
+    provider: str = "",
+    target: str = "",
+    profile_id: str = "",
+    workspace_id: str = "",
+    file_id: str = "",
+    query: str = "",
+    allow_workspace_fallback: bool = False,
+    requires_mutation: bool = False,
+) -> str:
+    """Resolve, plan and dry-run simulate a request; never starts processes or executes scripts/cloud mutations."""
+    return _plan_execution(
+        operation=operation,
+        tool_name=tool_name,
+        capability_id=capability_id,
+        provider=provider,
+        target=target,
+        profile_id=profile_id,
+        workspace_id=workspace_id,
+        file_id=file_id,
+        query=query,
+        allow_workspace_fallback=allow_workspace_fallback,
+        requires_mutation=requires_mutation,
+    )
+
+
+@mcp.tool(title="Get execution planning history")
+def get_execution_history(record_id: str = "", limit: int = 20) -> str:
+    """Return bounded, redacted plan/simulation history; never starts processes."""
+    return _get_execution_history(record_id=record_id, limit=limit)
 
 
 if __name__ == "__main__":

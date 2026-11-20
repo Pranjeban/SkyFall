@@ -14,7 +14,7 @@ class CapabilityRegistryTests(unittest.TestCase):
 
     def test_catalogue_contains_all_enabled_tools(self) -> None:
         capabilities = self.registry.list()
-        self.assertEqual(len(capabilities), 34)
+        self.assertEqual(len(capabilities), 36)
         self.assertEqual(
             {item.tool_name for item in capabilities},
             {
@@ -52,6 +52,8 @@ class CapabilityRegistryTests(unittest.TestCase):
                 "governance_summary",
                 "route_copilot_intent",
                 "build_operation_plan",
+                "plan_execution",
+                "get_execution_history",
             },
         )
 
@@ -92,7 +94,7 @@ class CapabilityRegistryTests(unittest.TestCase):
         for category, expected in (
             ("identity", 1), ("orchestration", 1), ("cross_platform", 1),
             ("monitoring", 1), ("reporting", 1), ("governance", 1),
-            ("copilot", 1), ("operations", 1),
+            ("copilot", 1), ("operations", 1), ("execution", 2),
         ):
             with self.subTest(category=category):
                 self.assertEqual(len(self.registry.list(category=category)), expected)

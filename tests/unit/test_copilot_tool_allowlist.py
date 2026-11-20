@@ -45,13 +45,13 @@ class TestCopilotToolAllowlist(unittest.TestCase):
         cls.smoke_names = set(re.findall(r'"([A-Za-z0-9_]+)"', smoke_block.group(1)))
 
     def test_allow_list_covers_every_enabled_tool(self) -> None:
-        self.assertEqual(len(self.enabled), 34)
+        self.assertEqual(len(self.enabled), 36)
         self.assertEqual(set(self.allowed), set(self.enabled))
         self.assertEqual(len(self.allowed), len(self.enabled))
 
     def test_mcp_smoke_script_expects_every_enabled_tool(self) -> None:
         self.assertEqual(self.smoke_names, set(self.enabled))
-        self.assertEqual(len(self.smoke_names), 34)
+        self.assertEqual(len(self.smoke_names), 36)
 
     def test_system_instructions_describe_the_v11_boundary(self) -> None:
         for token in (
@@ -63,6 +63,10 @@ class TestCopilotToolAllowlist(unittest.TestCase):
             "not_found_partial",
             "MSAL sessions independent",
             "never executes",
+            "plan_execution",
+            "get_execution_history",
+            "resolve, plan and dry-run simulate only",
+            "never start a process",
         ):
             with self.subTest(token=token):
                 self.assertIn(token, self.instructions)

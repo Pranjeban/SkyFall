@@ -59,6 +59,8 @@ EXPECTED_TOOL_NAMES = {
     "governance_summary",
     "route_copilot_intent",
     "build_operation_plan",
+    "plan_execution",
+    "get_execution_history",
 }
 
 
@@ -231,9 +233,9 @@ async def run_server_test(local_app_data: Path) -> int:
         status_payload = json_payload(status, "get_skyfall_status")
         if status_payload.get("application") != "SKYFALL":
             raise RuntimeError("Status tool returned an unexpected application name.")
-        if status_payload.get("enabled_tools") != 34:
+        if status_payload.get("enabled_tools") != 36:
             raise RuntimeError(
-                "Status tool did not report thirty-four enabled tools; "
+                "Status tool did not report thirty-six enabled tools; "
                 f"got {status_payload.get('enabled_tools')!r}."
             )
 
@@ -320,7 +322,7 @@ async def run_server_test(local_app_data: Path) -> int:
         if file_metadata.get("name") != "SkyfallWorkspaceSmokeScript.ps1":
             raise RuntimeError("Workspace description returned an unexpected file.")
         serialized = json.dumps(file_payload)
-        if "Write-Output 'SOURCE_CONTENT_MUST_NOT_BE_EXPOSED'" in serialized:
+        if "Write-Output 'private-marker-do-not-share'" in serialized:
             raise RuntimeError(
                 "Workspace MCP unexpectedly returned source-code content."
             )
@@ -463,6 +465,29 @@ async def run_server_test(local_app_data: Path) -> int:
             raise RuntimeError("Power Automate test-mode response did not confirm read-only behavior.")
         print("Power Automate inventory required environment schema: PASS")
         print("Power Automate inventory isolated test-mode guard: PASS")
+
+        print("Checking plan-only execution tools...", flush=True)
+        plan_tool = next(tool for tool in discovered.tools if tool.name == "plan_execution")
+        history_tool = next(tool for tool in discovered.tools if tool.name == "get_execution_history")
+        if not plan_tool or not history_tool:
+            raise RuntimeError("Plan-only execution tools were not discovered.")
+        plan_result = await invoke_tool(
+            client,
+            "plan_execution",
+            {"capability_id": "core.get_status"},
+        )
+        plan_payload = json_payload(plan_result, "plan_execution")
+        if plan_payload.get("executed") is not False or plan_payload.get("process_started") is not False:
+            raise RuntimeError("plan_execution reported execution or a started process.")
+        if plan_payload.get("plan_only") is not True:
+            raise RuntimeError("plan_execution did not report plan-only behavior.")
+        history_result = await invoke_tool(client, "get_execution_history", {"limit": 5})
+        history_payload = json_payload(history_result, "get_execution_history")
+        if history_payload.get("process_started") is not False or history_payload.get("executed") is not False:
+            raise RuntimeError("get_execution_history reported execution or a started process.")
+        print("Plan-only execution tool: PASS")
+        print("Execution history tool: PASS")
+
         print("Workspace metadata consent: TESTED IN ISOLATED TEMPORARY DB")
         print("External cloud access: NOT USED")
         print("User workspace database: NOT TOUCHED")
@@ -486,8 +511,8 @@ def main() -> int:
         sample_script = sample_workspace / "SkyfallWorkspaceSmokeScript.ps1"
         sample_script.write_text(
             "param([string]$EnvironmentName)\n"
-            "function Get-SkyfallWorkspaceSmokeInventory { }\n"
-            "Write-Output 'SOURCE_CONTENT_MUST_NOT_BE_EXPOSED'\n",
+            "function Get-SmokeInventory { }\n"
+            "Write-Output 'private-marker-do-not-share'\n",
             encoding="utf-8",
         )
 

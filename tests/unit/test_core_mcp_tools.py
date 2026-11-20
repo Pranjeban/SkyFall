@@ -20,7 +20,7 @@ class CoreMcpToolTests(unittest.TestCase):
         self.assertEqual(payload["script_execution"], "not_enabled")
         self.assertEqual(payload["cloud_resource_modification"], "not_enabled")
         self.assertEqual(payload["version"], "0.9.2")
-        self.assertEqual(payload["enabled_tools"], 34)
+        self.assertEqual(payload["enabled_tools"], 36)
         self.assertEqual(payload["enabled_core_tools"], 3)
         self.assertEqual(payload["enabled_workspace_tools"], 4)
         self.assertEqual(payload["enabled_azure_discovery_tools"], 6)
