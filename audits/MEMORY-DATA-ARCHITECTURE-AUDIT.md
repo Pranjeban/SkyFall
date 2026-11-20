@@ -138,3 +138,80 @@ Identifiers preserved: UUID conversation ids; `copilot_session_id = "skyfall-{he
 
 ### Phase 3 exit assessment
 Memory and database ownership is now understood (three DBs, three memory layers, clearly separated). Risks and security posture are documented with severity labels and a remediation priority order. Ready for Phase 4.
+
+---
+
+## 8. Phase 3 full re-audit addendum (2026-11-20) — prior content preserved above
+
+**Agents:** `developer` (memory lifecycle and transactions), `researcher` (Data_Memory/docs, schemas, consumers), `security-auditor` (**failed** provider free-usage quota), `reviewer` (fallback sensitive-data review, different configured model). Orchestrator independently verified git tracking/ignore rules and read-only DB metadata. No source, database, backup or release file was modified.
+
+**Evidence limits:** the live `%LOCALAPPDATA%\SKYFALL\data\` directory does not exist in this environment; live `skyfall.db` and `workspace_index.db` schemas are therefore evidenced from source, not from live files. `Data_Memory/skyfall_memory.sqlite3` was inspected only via Python `sqlite3` immutable/read-only URI; no content rows with private text were reproduced.
+
+### 8.1 Actual data lifecycle
+
+`User interaction → MainWindow._submit_to_copilot (main_window.py:2919) → ConversationStore.add_message (:200-246, validated/transactional) → skyfall.db → get_messages ORDER BY id ASC (:248-269) for UI rendering → CopilotWorker resume_session/create_session (:234-254, :361-388) using copilot_session_id → Copilot SDK transcript (external) → assistant response persisted with status (:3054-3085).`
+
+There is **no** SQLite→SDK context push: only the new prompt is sent (`copilot_service.py:430-431`); prior context is reconstructed by the SDK from its own transcript. `get_messages` feeds the UI only (`main_window.py:3266-3271`).
+
+### 8.2 Schemas and ownership
+
+| Store | Owner | Schema / controls (evidence) |
+|---|---|---|
+| `%LOCALAPPDATA%\SKYFALL\data\skyfall.db` | `memory/conversation_store.py:45-53` | `conversations(id PK, title, copilot_session_id UNIQUE, created_at, updated_at, sdk_session_initialized)`, `messages(id AUTOINCREMENT PK, conversation_id FK ON DELETE CASCADE, role CHECK, content, status, created_at)`, `app_state(key PK, value)`; indexes `idx_messages_conversation_id_id`, `idx_conversations_updated_at`; WAL, `foreign_keys=ON`, `busy_timeout=20000`; per-call connection, RLock in working tree |
+| `%LOCALAPPDATA%\SKYFALL\data\workspace_index.db` | `skyfall_workspace/manager.py:131-138` | `workspaces`, `workspace_files` (FK cascade, `UNIQUE(workspace_id, relative_path)`); indexes `idx_workspace_files_name`, `idx_workspace_files_workspace`; WAL, busy timeout, uncommitted RLock |
+| `Data_Memory/skyfall_memory.sqlite3` | No runtime owner; `analyze_db.py:3` only | `conversations(conversation_id PK, title, started_at, source, notes)`, `messages(message_id AUTOINCREMENT PK, conversation_id FK CASCADE, sequence_no, speaker CHECK, content, source_kind, UNIQUE(conversation_id,sequence_no))`, `memory_documents(document_id PK AUTOINCREMENT, path UNIQUE, document_type, content, updated_at)`, `assets(asset_id PK AUTOINCREMENT, relative_path UNIQUE, file_name, media_type, sha256, byte_size, description)`, `metadata(key PK, value)`; index `idx_messages_conversation_sequence`; 6 FTS triggers; FTS5 `messages_fts`/`memory_fts` + 8 shadow tables; metadata keys `schema_version`, `canonical_requested_path`; journal mode delete, not WAL |
+| `%LOCALAPPDATA%\SKYFALL\azure_profiles\profiles.json` / `...\powerplatform\profiles.json` | `azure_profiles.py:88-90` / `powerplatform_accounts.py:39-49` | JSON registries, temp+`os.replace`, no file locking; token caches delegated to Azure CLI/MSAL |
+| `database/` | None | Empty; `.gitignore:8-9` ignores `database/*.db` and `database/*.sqlite*` |
+
+Read-only counts for the orphan DB: **28 schema objects**, 1 conversation, 35 messages, 9 memory documents, 2 assets, 2 metadata rows. Its schema is incompatible with the live store (`speaker`/`sequence_no` vs `copilot_session_id`/`sdk_session_initialized`), so it is a separate lineage, not a migrated store.
+
+### 8.3 Consumer tracing
+
+- `ConversationStore`: `app/desktop/main_window.py:44,423-426,558-562,2919,3054,3068-3085,3120-3220,3266-3271`; tests `tests/unit/test_conversation_store.py` (8 tests).
+- `WorkspaceManager`: `main_window.py:424`, `skyfall_workspace/worker.py:20`, `skyfall_mcp/tools/workspace.py:12`, `scripts/test_mcp_server.py:464-466`; tests use temp DBs.
+- `Data_Memory` DB: zero runtime references at HEAD and `origin/v0.9.2` (`git grep "Data_Memory" -- "*.py"`); only untracked `analyze_db.py:3` opens it, with a **write-capable** plain connection.
+- Five `ConversationStore` methods have zero callers and zero tests: `update_conversation_title:310`, `delete_message:318`, `search_conversations:327`, `export_conversation_markdown:345`, `backup_database:362`.
+
+### 8.4 Markdown authority and duplication
+
+The four `Data_Memory` Markdown files are hand-maintained, not generated: `README.md` (19-line index and update protocol), `CHAT_HISTORY.md` (116-line curated continuity log), `CHAT_TRANSCRIPT.md` (189-line verbatim user turns plus assistant summaries), `SKYFALL_COLLABORATION_MEMORY.md` (118-line durable goals/issue register). They are authoritative for **intent**; the SQLite DB is a parallel structured snapshot. Records are duplicated (`memory_documents.content` holds Markdown copies; message turns also live in `messages`), and prior verification found stale duplicate rows and 2 dangling assets. All five `Data_Memory` files are **git-tracked** (verified `git ls-files`) and no `.gitignore` rule protects them.
+
+### 8.5 Direct answers to the Phase 3 questions
+
+| # | Question | Answer (evidence above) |
+|---|---|---|
+| 1 | Which DB stores conversation history? | Live `skyfall.db`; `Data_Memory` holds one imported archival thread |
+| 2 | Is `Data_Memory/skyfall_memory.sqlite3` actively used? | No runtime consumer; only untracked `analyze_db.py:3` |
+| 3 | Are there multiple SQLite databases? | Yes: `skyfall.db`, `workspace_index.db`, orphan `skyfall_memory.sqlite3`; only the orphan is in-repo |
+| 4 | Markdown authoritative or generated? | Hand-maintained, authoritative for intent; not generated |
+| 5 | Are records duplicated? | Yes — Markdown content in `memory_documents`, turns in `messages`; drift observed |
+| 6 | How is context assembled? | Copilot SDK `resume_session` by `copilot_session_id`; SQLite is display/index only |
+| 7 | Long conversation history handling? | `list_conversations` capped 500; `get_messages` has no pagination/truncation; SDK transcript external |
+| 8 | Is memory searchable? | UI client-side filter only; store `LIKE` search dormant; Data_Memory FTS5 unused at runtime |
+| 9 | Are there indexes? | Yes — two in each live store, plus orphan FTS/auto indexes |
+| 10 | Projects/sessions/conversations distinguished? | `workspaces` = approved roots; `conversations.id` = chat UUID; `copilot_session_id` = SDK session; no project entity |
+| 11 | Migrations implemented? | No — `CREATE TABLE IF NOT EXISTS` only; orphan metadata `schema_version=1` |
+| 12 | Backup/restoration supported? | `backup_database` unwired; no restore or workspace/orphan backup |
+| 13 | Import/export supported? | Export returns a Markdown string with zero callers; no import path |
+| 14 | Concurrency issues possible? | Yes — single-process RLock, multi-instance `WorkspaceManager`, unlocked JSON registries |
+| 15 | Can crashes leave partial writes? | `add_message` is transactional, but a crash between user and assistant persist diverges from SDK; WAL sidecars may retain data |
+| 16 | Connections managed safely? | Per-call contextmanager with commit/rollback/finally close; FK pragma per connection |
+| 17 | Is deletion consistent? | Local cascade + `app_state` clear; SDK transcript and Markdown/SQLite copies are not deleted |
+| 18 | Are identifiers preserved? | UUID conversation IDs, `skyfall-*` session IDs, autoincrement message IDs; no migration renumbering |
+| 19 | Clear separation of history/persistent/project/session memory? | Partial — four distinct stores, but Data_Memory duplicates content, no project entity, and SDK transcripts are external |
+
+### 8.6 Transaction/crash/concurrency findings
+
+`add_message` wraps message insert, first-user title derivation and `app_state` upsert in one DEFERRED transaction with rollback on exception (`conversation_store.py:59-76,214-246`). Risks: `sdk_session_initialized=True` is set even on failed/interrupted responses (`main_window.py:3068-3085`), making an inconsistent session resumable; deletion leaves the SDK transcript orphaned and the replacement conversation starts with `resume=False`; `get_or_create_active_conversation` silently falls back to the latest conversation when the active row is missing; locking is single-process only.
+
+### 8.7 Security posture (fallback reviewer, read-only)
+
+**Closed:** M-04 extended redaction (`command_runner.py:50-56`, applied at `:112-113,125-126`; CLI error `azure_profiles.py:283`); M-02 high-entropy + SaaS-prefix detection (`analyzer.py:57-129`, with `sensitive_flag` exclusions in `manager.py:419,448,575,644`); M-05 profile deletion removes isolated Azure CLI dir (`azure_profiles.py:192-204`); `SKYFALL_TEST_MODE` guards confirmed (`tools/accounts.py:70,171`, `azure_profiles.py:255-256`, `command_runner.py:78-84`, `azure_resources.py:349`, `powerplatform_resources.py:247`); export now includes status/session metadata (`conversation_store.py:352,356`).
+
+**Still open:** **High** H-01 plaintext conversation storage (`conversation_store.py:45-48,222-229`); H-02 export emits raw `message.content` without redaction (`:358`, zero callers). **Medium** M-01 no persist-time secret scanning; M-03 unlocked profile JSON registries; M-06 all five `Data_Memory` files git-tracked with no ignore rule; `backup_database` writes an unencrypted, caller-supplied destination without validation. **Low** WAL sidecars, tenant hints/config paths in metadata, secret-named JSON keys retained in analyzer headings; untracked `analyze_db.py:3,16-22` prints raw Data_Memory rows to stdout. Remediations are regex/entropy heuristics with thresholds and are not enforced controls.
+
+**No destructive action taken.** Any future ignore rule, scrubbing, encryption or deletion of `Data_Memory` artifacts requires explicit user approval and preservation of historical records.
+
+### 8.8 Exit assessment
+
+Data ownership, schemas, consumers, lifecycle, context reconstruction, duplication, transaction safety and security posture are now evidenced, with explicit limits where live DB files are unavailable. Phase 3 exit criteria are met. **Approval is required before Phase 4.**

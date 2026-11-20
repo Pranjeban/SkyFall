@@ -2,11 +2,12 @@
 
 Local continuity folder for SKYFALL planning, conversation history, and issue evidence.
 
-If the user says **“pull the memory from Data_Memory”**, read these files first:
+If the user says **"pull the memory from Data_Memory"**, read these files first:
 
-1. [SKYFALL_COLLABORATION_MEMORY.md](SKYFALL_COLLABORATION_MEMORY.md) — durable product goals, priorities, and implementation status.
-2. [CHAT_HISTORY.md](CHAT_HISTORY.md) — conversation summary and resumption instructions.
-3. [CHAT_TRANSCRIPT.md](CHAT_TRANSCRIPT.md) — verbatim user messages available from this thread and an assistant work summary.
+1. [V1.0.1-RESUMPTION-MEMORY.md](V1.0.1-RESUMPTION-MEMORY.md) — **read this FIRST for phase-gated v1.0.1 work**: exact phase state, copy/paste resumption prompt, verified facts, outstanding decisions, deliverable inventory.
+2. [SKYFALL_COLLABORATION_MEMORY.md](SKYFALL_COLLABORATION_MEMORY.md) — durable product goals, priorities, and implementation status.
+3. [CHAT_HISTORY.md](CHAT_HISTORY.md) — conversation summary and resumption instructions.
+4. [CHAT_TRANSCRIPT.md](CHAT_TRANSCRIPT.md) — verbatim user messages available from this thread and an assistant work summary.
 
 Screenshots are in [Images](Images/).
 
